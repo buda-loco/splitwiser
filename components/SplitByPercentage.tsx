@@ -1,0 +1,141 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import type { Participant, ExpenseSplit } from '@/lib/db/types';
+
+export function SplitByPercentage({
+  amount,
+  participants,
+  onChange
+}: {
+  amount: number;
+  participants: Participant[];
+  onChange: (splits: ExpenseSplit[]) => void;
+}) {
+  // Track percentage for each participant
+  const [percentages, setPercentages] = useState<Record<string, number>>(() => {
+    // Initialize with equal percentages
+    const equalPercentage = 100 / participants.length;
+    return Object.fromEntries(
+      participants.map(p => [
+        p.id,
+        Math.floor(equalPercentage * 100) / 100
+      ])
+    );
+  });
+
+  // Calculate splits from percentages
+  const splits = useMemo(() => {
+    return participants.map(participant => {
+      const key = participant.id;
+      const percentage = percentages[key] || 0;
+      const calculatedAmount = (amount * percentage) / 100;
+
+      return {
+        id: crypto.randomUUID(),
+        expense_id: '',
+        user_id: participant.claimed_by_user_id,
+        participant_id: participant.id,
+        amount: Math.round(calculatedAmount * 100) / 100, // Round to 2 decimals
+        split_type: 'percentage' as const,
+        split_value: percentage,
+        created_at: new Date().toISOString()
+      };
+    });
+  }, [amount, participants, percentages]);
+
+  // Update parent when splits change
+  useMemo(() => {
+    onChange(splits);
+  }, [splits, onChange]);
+
+  // Calculate totals for validation
+  const totalPercentage = Object.values(percentages).reduce((sum, p) => sum + p, 0);
+  const totalAmount = splits.reduce((sum, s) => sum + s.amount, 0);
+  const percentageValid = Math.abs(totalPercentage - 100) < 0.01;
+  const amountValid = Math.abs(totalAmount - amount) < 0.01;
+
+  const handlePercentageChange = (key: string, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setPercentages(prev => ({ ...prev, [key]: numValue }));
+  };
+
+  // Auto-adjust remaining percentage
+  const handleAutoComplete = (key: string) => {
+    const remaining = 100 - Object.entries(percentages)
+      .filter(([k]) => k !== key)
+      .reduce((sum, [, v]) => sum + v, 0);
+
+    setPercentages(prev => ({ ...prev, [key]: Math.max(0, remaining) }));
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="font-medium text-gray-900">Split by Percentage</h3>
+
+      {/* Percentage inputs */}
+      <div className="space-y-2">
+        {participants.map(participant => {
+          const key = participant.id;
+          const percentage = percentages[key] || 0;
+          const split = splits.find(s =>
+            s.participant_id === participant.id
+          );
+
+          return (
+            <div key={key} className="flex items-center gap-3">
+              <span className="flex-1 text-gray-900">{participant.name}</span>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={percentage}
+                  onChange={(e) => handlePercentageChange(key, e.target.value)}
+                  onBlur={() => handleAutoComplete(key)}
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
+                />
+                <span className="text-gray-600">%</span>
+                <span className="w-20 text-right font-medium text-gray-900">
+                  ${split?.amount.toFixed(2) || '0.00'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Validation feedback */}
+      {!percentageValid && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3">
+          <p className="text-sm text-yellow-800">
+            Percentages total {totalPercentage.toFixed(2)}% (should be 100%)
+          </p>
+        </div>
+      )}
+
+      {!amountValid && percentageValid && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3">
+          <p className="text-sm text-yellow-800">
+            Rounding difference: ${Math.abs(totalAmount - amount).toFixed(2)}
+          </p>
+        </div>
+      )}
+
+      {/* Total */}
+      <div className="pt-2 border-t border-gray-300">
+        <div className="flex justify-between">
+          <span className="font-semibold">Total</span>
+          <div className="flex gap-4">
+            <span className={percentageValid ? 'text-green-600' : 'text-red-600'}>
+              {totalPercentage.toFixed(2)}%
+            </span>
+            <span className="font-semibold">${totalAmount.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
