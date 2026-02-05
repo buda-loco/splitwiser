@@ -13,8 +13,8 @@ None
 - [x] **Phase 1: Foundation & Setup** - Project structure, Next.js + Supabase configuration, PWA basics (Completed: 2026-02-06)
 - [x] **Phase 2: Authentication & User Model** - Supabase auth, hybrid account system, user profiles (Completed: 2026-02-06)
 - [x] **Phase 3: Data Model & Offline Foundation** - Database schema, local storage, sync architecture (Completed: 2026-02-06)
-- [ ] **Phase 4: Core Expense Creation** - Add expenses, participants, splitting methods
-- [ ] **Phase 5: Tagging & Organization** - Tag system, filtering, smart suggestions
+- [x] **Phase 4: Core Expense Creation** - Add expenses, participants, splitting methods (Completed: 2026-02-06)
+- [ ] **Phase 5: Tagging & Organization** - Tag system, filtering, smart suggestions (In progress)
 - [ ] **Phase 6: Balance Calculation Engine** - Global balances, debt simplification, multi-currency
 - [ ] **Phase 7: Settlement & Payments** - Record settlements (global, tag-specific, partial)
 - [ ] **Phase 8: Templates & Efficiency Features** - Predefined split templates, quick-apply
@@ -101,14 +101,15 @@ Plans:
 **Goal**: Implement tag system for organizing expenses with filtering and context-aware suggestions
 **Depends on**: Phase 4
 **Research**: Unlikely (internal feature using existing data model)
-**Plans**: 3-5 plans
+**Plans**: 6 plans
 
 Plans:
-- [ ] 05-01: Create tag input component with autocomplete
-- [ ] 05-02: Implement tag filtering on expense list
-- [ ] 05-03: Build smart participant suggestions based on tag history
+- [x] 05-01: Create tag input component with autocomplete
+- [x] 05-02: Implement tag filtering on expense list
+- [x] 05-03: Build smart participant suggestions based on tag history
 - [ ] 05-04: Add tag management (rename, delete, merge)
 - [ ] 05-05: Create tag-based expense summary views
+- [ ] 05-06: Additional tagging features (if needed)
 
 ### Phase 6: Balance Calculation Engine
 **Goal**: Calculate global balances per person, implement debt simplification toggle, and multi-currency conversion
@@ -208,8 +209,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Foundation & Setup | 5/5 | Complete | 2026-02-06 |
 | 2. Authentication & User Model | 6/6 | Complete | 2026-02-06 |
 | 3. Data Model & Offline Foundation | 8/8 | Complete | 2026-02-06 |
-| 4. Core Expense Creation | 0/7 | Not started | - |
-| 5. Tagging & Organization | 0/5 | Not started | - |
+| 4. Core Expense Creation | 7/7 | Complete | 2026-02-06 |
+| 5. Tagging & Organization | 3/6 | In progress | - |
 | 6. Balance Calculation Engine | 0/8 | Not started | - |
 | 7. Settlement & Payments | 0/5 | Not started | - |
 | 8. Templates & Efficiency Features | 0/4 | Not started | - |
