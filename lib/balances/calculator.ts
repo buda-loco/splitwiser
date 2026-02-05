@@ -14,6 +14,8 @@
 import { getExpenses, getExpenseSplits } from '@/lib/db/stores';
 import type { PersonIdentifier, BalanceEntry, BalanceResult } from './types';
 import { simplifyDebts } from './simplification';
+import { convertBalances } from '@/lib/currency/exchangeRates';
+import type { CurrencyCode } from '@/lib/currency/types';
 
 /**
  * Calculate balances across all expenses
@@ -25,7 +27,8 @@ import { simplifyDebts } from './simplification';
  *    b. Get expense splits (who owes how much)
  *    c. Record debt: each split participant owes the payer their split amount
  * 3. Aggregate all debts per person pair
- * 4. Return direct balances (or simplified if requested)
+ * 4. Apply simplification if requested
+ * 5. Convert to target currency if specified
  *
  * Edge cases handled:
  * - Person paid and also owes on same expense (subtract their own split)
@@ -33,10 +36,12 @@ import { simplifyDebts } from './simplification';
  * - Multi-currency expenses (calculate per currency, return primary)
  *
  * @param options.simplified - If true, return simplified balances with minimum transactions
+ * @param options.targetCurrency - If specified, convert all balances to this currency
  * @returns BalanceResult with direct or simplified balances showing who owes whom
  */
 export async function calculateBalances(options?: {
   simplified?: boolean;
+  targetCurrency?: CurrencyCode;
 }): Promise<BalanceResult> {
   // Fetch all non-deleted expenses
   const expenses = await getExpenses();
@@ -146,13 +151,20 @@ export async function calculateBalances(options?: {
   }
 
   // Apply simplification if requested
-  const balances = options?.simplified
+  let balances = options?.simplified
     ? simplifyDebts(directBalances)
     : directBalances;
+
+  // Convert to target currency if specified
+  let currency = primaryCurrency;
+  if (options?.targetCurrency) {
+    balances = await convertBalances(balances, options.targetCurrency);
+    currency = options.targetCurrency;
+  }
 
   return {
     balances,
     total_expenses: totalsByCurrency.get(primaryCurrency) || 0,
-    currency: primaryCurrency,
+    currency,
   };
 }
