@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { calculateBalances } from '@/lib/balances/calculator';
 import type { BalanceResult } from '@/lib/balances/types';
+import type { CurrencyCode } from '@/lib/currency/types';
 
 /**
  * Hook to provide balance calculations with loading states
@@ -14,18 +15,22 @@ import type { BalanceResult } from '@/lib/balances/types';
  * provides loading state. In future plans, this will add real-time updates
  * when expenses change.
  *
- * @returns Object with balances (BalanceResult or null), loading state, and simplified toggle
+ * @returns Object with balances, loading state, simplified toggle, and currency selector
  */
 export function useBalances() {
   const [balances, setBalances] = useState<BalanceResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [simplified, setSimplified] = useState(false);
+  const [targetCurrency, setTargetCurrency] = useState<CurrencyCode>('AUD');
 
   useEffect(() => {
     async function loadBalances() {
       try {
         setLoading(true);
-        const result = await calculateBalances({ simplified });
+        const result = await calculateBalances({
+          simplified,
+          targetCurrency,
+        });
         setBalances(result);
       } catch (error) {
         console.error('Failed to load balances:', error);
@@ -36,7 +41,14 @@ export function useBalances() {
     }
 
     loadBalances();
-  }, [simplified]); // Recalculate when simplified toggle changes
+  }, [simplified, targetCurrency]); // Recalculate when either changes
 
-  return { balances, loading, simplified, setSimplified };
+  return {
+    balances,
+    loading,
+    simplified,
+    setSimplified,
+    targetCurrency,
+    setTargetCurrency,
+  };
 }
