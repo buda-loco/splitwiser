@@ -5,7 +5,7 @@ import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { addParticipantToExpense, createSplit } from '@/lib/db/stores';
+import { addParticipantToExpense, createSplit, addTagToExpense } from '@/lib/db/stores';
 
 /**
  * New Expense Page
@@ -61,6 +61,16 @@ export default function NewExpensePage() {
           ...split,
           expense_id: expenseId
         });
+      }
+
+      // Add tags to the expense
+      for (const tag of formData.tags) {
+        try {
+          await addTagToExpense(expenseId, tag);
+        } catch (err) {
+          // Log but don't block submission on tag errors
+          console.error(`Failed to add tag "${tag}":`, err);
+        }
       }
 
       // Navigate to expense list

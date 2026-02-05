@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getExpense, getExpenseParticipants, getExpenseSplits } from '@/lib/db/stores';
+import { getExpense, getExpenseParticipants, getExpenseSplits, getExpenseTags, addTagToExpense, removeTagFromExpense } from '@/lib/db/stores';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import type { OfflineExpense, ExpenseParticipant, ExpenseSplit } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
@@ -14,6 +14,7 @@ export function ExpenseDetail({ id }: { id: string }) {
   const [expense, setExpense] = useState<OfflineExpense | null>(null);
   const [participants, setParticipants] = useState<ExpenseParticipant[]>([]);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -27,10 +28,12 @@ export function ExpenseDetail({ id }: { id: string }) {
 
       const parts = await getExpenseParticipants(id);
       const spl = await getExpenseSplits(id);
+      const tgs = await getExpenseTags(id);
 
       setExpense(exp);
       setParticipants(parts);
       setSplits(spl);
+      setTags(tgs);
       setLoading(false);
     }
 
@@ -47,10 +50,39 @@ export function ExpenseDetail({ id }: { id: string }) {
         category: formData.category,
         expense_date: formData.expense_date
       });
+
+      // Update tags
+      const existingTags = await getExpenseTags(id);
+      const newTags = formData.tags || [];
+
+      // Remove tags that are no longer present
+      for (const tag of existingTags) {
+        if (!newTags.includes(tag)) {
+          try {
+            await removeTagFromExpense(id, tag);
+          } catch (err) {
+            console.error(`Failed to remove tag "${tag}":`, err);
+          }
+        }
+      }
+
+      // Add new tags that weren't in existing tags
+      for (const tag of newTags) {
+        if (!existingTags.includes(tag)) {
+          try {
+            await addTagToExpense(id, tag);
+          } catch (err) {
+            console.error(`Failed to add tag "${tag}":`, err);
+          }
+        }
+      }
+
       setIsEditing(false);
       // Reload the expense data
       const exp = await getExpense(id);
+      const tgs = await getExpenseTags(id);
       if (exp) setExpense(exp);
+      setTags(tgs);
     } catch (err) {
       console.error('Failed to update expense:', err);
     }
@@ -98,7 +130,8 @@ export function ExpenseDetail({ id }: { id: string }) {
             category: expense.category || '',
             expense_date: expense.expense_date,
             participants: participantsWithDetails,
-            splits
+            splits,
+            tags
           }}
           onSubmit={handleUpdate}
           onCancel={() => setIsEditing(false)}
