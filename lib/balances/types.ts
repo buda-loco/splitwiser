@@ -31,6 +31,13 @@ export type BalanceEntry = {
   to: PersonIdentifier;
   amount: number;
   currency: string;
+  expenses?: {
+    id: string;
+    description: string;
+    amount: number;
+    date: string;
+    split_amount: number;  // How much this person owes for this expense
+  }[];
 };
 
 /**

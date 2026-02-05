@@ -47,11 +47,22 @@ export async function calculateBalances(options?: {
   const expenses = await getExpenses();
 
   // Track balances per currency
-  // Map structure: currency -> personPairKey -> amount
+  // Map structure: currency -> personPairKey -> balance entry with expenses
   // personPairKey format: "from_id|to_id"
   const balancesByCurrency = new Map<
     string,
-    Map<string, { from: PersonIdentifier; to: PersonIdentifier; amount: number }>
+    Map<string, {
+      from: PersonIdentifier;
+      to: PersonIdentifier;
+      amount: number;
+      expenses: Array<{
+        id: string;
+        description: string;
+        amount: number;
+        date: string;
+        split_amount: number;
+      }>;
+    }>
   >();
 
   // Track total expenses per currency
@@ -111,15 +122,26 @@ export async function calculateBalances(options?: {
       const currencyBalances = balancesByCurrency.get(currency)!;
       const existing = currencyBalances.get(pairKey);
 
+      // Create expense detail for tracking
+      const expenseDetail = {
+        id: expense.id,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.expense_date,
+        split_amount: split.amount,
+      };
+
       if (existing) {
         // Add to existing debt
         existing.amount += split.amount;
+        existing.expenses.push(expenseDetail);
       } else {
         // Create new debt entry
         currencyBalances.set(pairKey, {
           from,
           to,
           amount: split.amount,
+          expenses: [expenseDetail],
         });
       }
     }
@@ -146,11 +168,14 @@ export async function calculateBalances(options?: {
         to: entry.to,
         amount: entry.amount,
         currency: primaryCurrency,
+        // Only include expenses in direct view (simplified=false)
+        expenses: !options?.simplified ? entry.expenses : undefined,
       });
     }
   }
 
   // Apply simplification if requested
+  // Note: Simplified debts lose expense-level detail since they merge multiple debts
   let balances = options?.simplified
     ? simplifyDebts(directBalances)
     : directBalances;
