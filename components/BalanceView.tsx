@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useBalances } from '@/hooks/useBalances';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
+import { BalanceDetail } from './BalanceDetail';
 import type { CurrencyCode } from '@/lib/currency/types';
 import type { BalanceEntry } from '@/lib/balances/types';
 
@@ -28,6 +30,9 @@ export function BalanceView() {
     targetCurrency,
     setTargetCurrency,
   } = useBalances();
+
+  // State for selected balance (to show detail modal)
+  const [selectedBalance, setSelectedBalance] = useState<BalanceEntry | null>(null);
 
   // Determine if a balance entry involves the current user
   const getBalanceType = (balance: BalanceEntry): 'owed-to-me' | 'i-owe' | 'others' => {
@@ -111,23 +116,56 @@ export function BalanceView() {
             amountColorClass = 'text-red-600 dark:text-red-500'; // Red for money you owe
           }
 
+          // Check if this balance has expense details (only in direct view)
+          const hasExpenseDetails = !simplified && balance.expenses && balance.expenses.length > 0;
+
           return (
             <div
               key={`${balance.from.user_id || balance.from.participant_id}-${balance.to.user_id || balance.to.participant_id}-${index}`}
-              className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+              onClick={() => setSelectedBalance(balance)}
+              className={`px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
+                hasExpenseDetails
+                  ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 active:bg-gray-100 dark:active:bg-gray-800 transition-colors'
+                  : ''
+              }`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex-1">
                   <p className="text-sm text-gray-700 dark:text-gray-300">
                     <span className="font-medium">{fromName}</span>
                     {' owes '}
                     <span className="font-medium">{toName}</span>
                   </p>
+                  {hasExpenseDetails && balance.expenses && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      From {balance.expenses.length} expense{balance.expenses.length !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                  {simplified && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 italic">
+                      Switch to direct view for breakdown
+                    </p>
+                  )}
                 </div>
-                <div className="text-right">
+                <div className="flex items-center gap-2">
                   <p className={`font-semibold ${amountColorClass}`}>
                     {balance.currency} {balance.amount.toFixed(2)}
                   </p>
+                  {hasExpenseDetails && (
+                    <svg
+                      className="w-5 h-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  )}
                 </div>
               </div>
             </div>
@@ -141,6 +179,15 @@ export function BalanceView() {
           Total expenses: {balances.currency} {balances.total_expenses.toFixed(2)}
         </p>
       </div>
+
+      {/* Balance detail modal */}
+      {selectedBalance && (
+        <BalanceDetail
+          balance={selectedBalance}
+          isOpen={true}
+          onClose={() => setSelectedBalance(null)}
+        />
+      )}
     </div>
   );
 }
