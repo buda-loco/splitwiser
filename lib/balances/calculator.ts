@@ -13,6 +13,7 @@
 
 import { getExpenses, getExpenseSplits } from '@/lib/db/stores';
 import type { PersonIdentifier, BalanceEntry, BalanceResult } from './types';
+import { simplifyDebts } from './simplification';
 
 /**
  * Calculate balances across all expenses
@@ -24,16 +25,19 @@ import type { PersonIdentifier, BalanceEntry, BalanceResult } from './types';
  *    b. Get expense splits (who owes how much)
  *    c. Record debt: each split participant owes the payer their split amount
  * 3. Aggregate all debts per person pair
- * 4. Return direct balances (not simplified)
+ * 4. Return direct balances (or simplified if requested)
  *
  * Edge cases handled:
  * - Person paid and also owes on same expense (subtract their own split)
  * - Multiple expenses between same two people (aggregate all debts)
  * - Multi-currency expenses (calculate per currency, return primary)
  *
- * @returns BalanceResult with direct balances showing who owes whom
+ * @param options.simplified - If true, return simplified balances with minimum transactions
+ * @returns BalanceResult with direct or simplified balances showing who owes whom
  */
-export async function calculateBalances(): Promise<BalanceResult> {
+export async function calculateBalances(options?: {
+  simplified?: boolean;
+}): Promise<BalanceResult> {
   // Fetch all non-deleted expenses
   const expenses = await getExpenses();
 
@@ -127,12 +131,12 @@ export async function calculateBalances(): Promise<BalanceResult> {
   }
 
   // Convert to balance entries (for primary currency)
-  const balances: BalanceEntry[] = [];
+  const directBalances: BalanceEntry[] = [];
   const primaryBalances = balancesByCurrency.get(primaryCurrency);
 
   if (primaryBalances) {
     for (const entry of primaryBalances.values()) {
-      balances.push({
+      directBalances.push({
         from: entry.from,
         to: entry.to,
         amount: entry.amount,
@@ -140,6 +144,11 @@ export async function calculateBalances(): Promise<BalanceResult> {
       });
     }
   }
+
+  // Apply simplification if requested
+  const balances = options?.simplified
+    ? simplifyDebts(directBalances)
+    : directBalances;
 
   return {
     balances,
