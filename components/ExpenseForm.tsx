@@ -6,6 +6,7 @@ import { ParticipantPicker } from './ParticipantPicker';
 import { SplitEqual } from './SplitEqual';
 import { SplitByPercentage } from './SplitByPercentage';
 import { SplitByShares } from './SplitByShares';
+import { TagInput } from './TagInput';
 import type { ExpenseSplit } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 
@@ -22,6 +23,7 @@ export type ExpenseFormData = {
   expense_date: string;
   participants: ParticipantWithDetails[];
   splits: ExpenseSplit[];
+  tags: string[];
 };
 
 /**
@@ -59,6 +61,9 @@ export function ExpenseForm({
   const [participants, setParticipants] = useState<ParticipantWithDetails[]>(initialData?.participants || []);
   const [splitMethod, setSplitMethod] = useState<SplitMethod>('equal');
   const [splits, setSplits] = useState<ExpenseSplit[]>(initialData?.splits || []);
+
+  // Tags state
+  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
 
   // Multi-step navigation
   const [step, setStep] = useState<'basic' | 'participants' | 'splits'>('basic');
@@ -139,7 +144,8 @@ export function ExpenseForm({
           category,
           expense_date: expenseDate,
           participants,
-          splits
+          splits,
+          tags
         });
 
         // Clear form after successful submission
@@ -149,6 +155,7 @@ export function ExpenseForm({
         setExpenseDate(new Date().toISOString().split('T')[0]);
         setParticipants([]);
         setSplits([]);
+        setTags([]);
         setStep('basic');
         setTouched({
           amount: false,
@@ -334,6 +341,14 @@ export function ExpenseForm({
             {errors.expense_date}
           </motion.p>
         )}
+      </div>
+
+      {/* Tags */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Tags (optional)
+        </label>
+        <TagInput tags={tags} onChange={setTags} />
       </div>
         </motion.div>
       )}
