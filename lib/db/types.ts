@@ -103,6 +103,11 @@ export type Expense = {
 export type OfflineExpense = Expense & {
   sync_status: 'pending' | 'synced' | 'conflict';
   local_updated_at: string; // For conflict detection
+  manual_exchange_rate?: {
+    from_currency: string;  // e.g., "EUR"
+    to_currency: string;    // e.g., "AUD"
+    rate: number;           // e.g., 1.65
+  } | null;
 };
 
 /**
