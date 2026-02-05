@@ -50,3 +50,61 @@ CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Participants Schema
+-- Participants are non-registered users who can be added to expenses
+-- They can later claim their identity by signing up
+
+-- Create participants table
+CREATE TABLE IF NOT EXISTS participants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  claimed_by_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_by_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index on email for invite link lookups
+CREATE INDEX IF NOT EXISTS idx_participants_email
+  ON participants(email)
+  WHERE email IS NOT NULL;
+
+-- Index on claimed_by_user_id for account claiming lookups
+CREATE INDEX IF NOT EXISTS idx_participants_claimed
+  ON participants(claimed_by_user_id)
+  WHERE claimed_by_user_id IS NOT NULL;
+
+-- Enable Row Level Security
+ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can view participants they created
+-- Note: Simplified for v1. Will refine when expenses table exists in Phase 3.
+CREATE POLICY "Users can view participants they created"
+  ON participants
+  FOR SELECT
+  TO authenticated
+  USING (created_by_user_id = auth.uid());
+
+-- Policy: Users can insert participants
+CREATE POLICY "Users can insert participants"
+  ON participants
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (created_by_user_id = auth.uid());
+
+-- Policy: Users can update own participants
+CREATE POLICY "Users can update own participants"
+  ON participants
+  FOR UPDATE
+  TO authenticated
+  USING (created_by_user_id = auth.uid())
+  WITH CHECK (created_by_user_id = auth.uid());
+
+-- Trigger to automatically update updated_at on participant changes
+CREATE TRIGGER update_participants_updated_at
+  BEFORE UPDATE ON participants
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
