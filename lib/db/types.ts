@@ -77,3 +77,110 @@ export type InviteToken = {
   used_at: string | null;
   created_at: string;
 };
+
+/**
+ * Expense record as stored in the database
+ */
+export type Expense = {
+  id: string;
+  amount: number;
+  currency: string;
+  description: string;
+  category: string | null;
+  expense_date: string;
+  paid_by_user_id: string | null;
+  created_by_user_id: string;
+  is_deleted: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+/**
+ * Offline-specific expense type with sync tracking
+ */
+export type OfflineExpense = Expense & {
+  sync_status: 'pending' | 'synced' | 'conflict';
+  local_updated_at: string; // For conflict detection
+};
+
+/**
+ * Expense participant record linking expenses to users or non-registered participants
+ */
+export type ExpenseParticipant = {
+  id: string;
+  expense_id: string;
+  user_id: string | null;
+  participant_id: string | null;
+  created_at: string;
+};
+
+/**
+ * Expense split record showing how an expense is divided
+ */
+export type ExpenseSplit = {
+  id: string;
+  expense_id: string;
+  user_id: string | null;
+  participant_id: string | null;
+  amount: number;
+  split_type: 'equal' | 'percentage' | 'shares' | 'exact';
+  split_value: number | null;
+  created_at: string;
+};
+
+/**
+ * Expense tag record for organizing expenses
+ */
+export type ExpenseTag = {
+  id: string;
+  expense_id: string;
+  tag: string;
+  created_at: string;
+};
+
+/**
+ * Settlement record tracking when debts are paid back
+ */
+export type Settlement = {
+  id: string;
+  from_user_id: string | null;
+  from_participant_id: string | null;
+  to_user_id: string | null;
+  to_participant_id: string | null;
+  amount: number;
+  currency: string;
+  settlement_type: 'global' | 'tag_specific' | 'partial';
+  tag: string | null;
+  settlement_date: string;
+  created_by_user_id: string;
+  created_at: string;
+};
+
+/**
+ * Expense version record for tracking edit history
+ */
+export type ExpenseVersion = {
+  id: string;
+  expense_id: string;
+  version_number: number;
+  changed_by_user_id: string;
+  change_type: 'created' | 'updated' | 'deleted' | 'restored';
+  changes: any; // jsonb field with before/after diff
+  created_at: string;
+};
+
+/**
+ * Sync queue item for tracking pending operations that need to be synced
+ */
+export type SyncQueueItem = {
+  id: string;
+  operation: 'create' | 'update' | 'delete';
+  table: string;
+  record_id: string;
+  payload: any;
+  status: 'pending' | 'synced' | 'failed';
+  created_at: string;
+  error_message?: string;
+};
