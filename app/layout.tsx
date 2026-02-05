@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased pb-16">
+      <body className="antialiased pb-16"> {/* pb-16 for bottom nav height, nav handles safe area */}
         {/* Content area with bottom padding for fixed nav */}
         <div className="min-h-screen">
           {children}
