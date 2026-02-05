@@ -14,16 +14,18 @@ import type { BalanceResult } from '@/lib/balances/types';
  * provides loading state. In future plans, this will add real-time updates
  * when expenses change.
  *
- * @returns Object with balances (BalanceResult or null) and loading state
+ * @returns Object with balances (BalanceResult or null), loading state, and simplified toggle
  */
 export function useBalances() {
   const [balances, setBalances] = useState<BalanceResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [simplified, setSimplified] = useState(false);
 
   useEffect(() => {
     async function loadBalances() {
       try {
-        const result = await calculateBalances();
+        setLoading(true);
+        const result = await calculateBalances({ simplified });
         setBalances(result);
       } catch (error) {
         console.error('Failed to load balances:', error);
@@ -34,7 +36,7 @@ export function useBalances() {
     }
 
     loadBalances();
-  }, []); // Empty dependency array: balance calculation is pure function of all expenses
+  }, [simplified]); // Recalculate when simplified toggle changes
 
-  return { balances, loading };
+  return { balances, loading, simplified, setSimplified };
 }
