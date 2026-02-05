@@ -14,20 +14,33 @@ import { BalanceEntry } from '@/lib/balances/types';
  *
  * @param from - Source currency code
  * @param to - Target currency code
+ * @param manualRate - Optional manual exchange rate override (e.g., from credit card)
  * @returns Exchange rate multiplier (e.g., 0.85 means 1 USD = 0.85 EUR)
  *
  * Flow:
- * 1. Check cache first (if valid and not expired)
- * 2. Fetch from API if cache miss or expired
- * 3. Cache fresh data with 24h TTL
- * 4. Fallback to expired cache if API fails
- * 5. Ultimate fallback: 1.0 (no conversion)
+ * 1. Use manual rate if provided and matches conversion direction
+ * 2. Check cache first (if valid and not expired)
+ * 3. Fetch from API if cache miss or expired
+ * 4. Cache fresh data with 24h TTL
+ * 5. Fallback to expired cache if API fails
+ * 6. Ultimate fallback: 1.0 (no conversion)
  */
 export async function getExchangeRate(
   from: CurrencyCode,
-  to: CurrencyCode
+  to: CurrencyCode,
+  manualRate?: { from_currency: string; to_currency: string; rate: number } | null
 ): Promise<number> {
   if (from === to) return 1.0;
+
+  // Use manual rate if provided and matches conversion direction
+  if (manualRate) {
+    if (manualRate.from_currency === from && manualRate.to_currency === to) {
+      return manualRate.rate;
+    }
+    if (manualRate.from_currency === to && manualRate.to_currency === from) {
+      return 1 / manualRate.rate;  // Inverse rate
+    }
+  }
 
   // Try cache first
   const cached = await getCachedRate(from);
@@ -113,6 +126,7 @@ function isExpired(cache: ExchangeRateCache): boolean {
  * @param amount - Amount to convert
  * @param from - Source currency code
  * @param to - Target currency code
+ * @param manualRate - Optional manual exchange rate override
  * @returns Converted amount rounded to 2 decimal places
  *
  * Example: convertAmount(100, 'USD', 'EUR') might return 85.00
@@ -120,9 +134,10 @@ function isExpired(cache: ExchangeRateCache): boolean {
 export async function convertAmount(
   amount: number,
   from: CurrencyCode,
-  to: CurrencyCode
+  to: CurrencyCode,
+  manualRate?: { from_currency: string; to_currency: string; rate: number } | null
 ): Promise<number> {
-  const rate = await getExchangeRate(from, to);
+  const rate = await getExchangeRate(from, to, manualRate);
   return parseFloat((amount * rate).toFixed(2));
 }
 
@@ -135,6 +150,9 @@ export async function convertAmount(
  *
  * Used for multi-currency balance view where all debts are shown in a single currency.
  * Preserves original balance structure, only updates amount and currency fields.
+ *
+ * Note: Manual exchange rates are applied at expense creation time, not during
+ * balance conversion. This function uses market rates from the exchange rate API.
  */
 export async function convertBalances(
   balances: BalanceEntry[],
