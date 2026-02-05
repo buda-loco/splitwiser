@@ -24,6 +24,11 @@ export type ExpenseFormData = {
   participants: ParticipantWithDetails[];
   splits: ExpenseSplit[];
   tags: string[];
+  manual_exchange_rate?: {
+    from_currency: string;
+    to_currency: string;
+    rate: number;
+  } | null;
 };
 
 /**
@@ -64,6 +69,10 @@ export function ExpenseForm({
 
   // Tags state
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
+
+  // Manual exchange rate state
+  const [showManualRate, setShowManualRate] = useState(false);
+  const [manualRate, setManualRate] = useState('');
 
   // Multi-step navigation
   const [step, setStep] = useState<'basic' | 'participants' | 'splits'>('basic');
@@ -137,6 +146,14 @@ export function ExpenseForm({
     } else if (step === 'splits') {
       // Final submission
       if (splitsValid) {
+        const manual_exchange_rate = manualRate && parseFloat(manualRate) > 0
+          ? {
+              from_currency: currency,
+              to_currency: 'AUD',
+              rate: parseFloat(manualRate)
+            }
+          : null;
+
         onSubmit({
           amount: parseFloat(amount),
           currency,
@@ -145,7 +162,8 @@ export function ExpenseForm({
           expense_date: expenseDate,
           participants,
           splits,
-          tags
+          tags,
+          manual_exchange_rate
         });
 
         // Clear form after successful submission
@@ -156,6 +174,8 @@ export function ExpenseForm({
         setParticipants([]);
         setSplits([]);
         setTags([]);
+        setManualRate('');
+        setShowManualRate(false);
         setStep('basic');
         setTouched({
           amount: false,
@@ -245,6 +265,51 @@ export function ExpenseForm({
           </select>
         </div>
       </div>
+
+      {/* Manual Exchange Rate (optional) */}
+      {currency !== 'AUD' && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowManualRate(!showManualRate)}
+            className="text-sm text-ios-blue dark:text-blue-400 font-medium active:opacity-70 transition-opacity"
+          >
+            {showManualRate ? '− Hide' : '+ Set custom exchange rate'}
+          </button>
+
+          {showManualRate && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3 space-y-2"
+            >
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Exchange Rate (optional)
+              </label>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                1 {currency} = ? AUD
+              </div>
+              <input
+                type="number"
+                step="0.0001"
+                value={manualRate}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || parseFloat(value) > 0) {
+                    setManualRate(value);
+                  }
+                }}
+                placeholder="e.g., 1.6500"
+                className="w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Leave empty to use current market rate
+              </p>
+            </motion.div>
+          )}
+        </div>
+      )}
 
       {/* Description */}
       <div>
