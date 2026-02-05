@@ -74,20 +74,28 @@ Plans:
 **Execution**: Parallel (6 waves, max 3 concurrent agents)
 **Wall clock time**: ~21 minutes
 
-### Phase 4: Core Expense Creation
+### Phase 4: Core Expense Creation ✓
 **Goal**: Build expense creation flow with participant selection, multiple splitting methods (equal, percentage, shares)
 **Depends on**: Phase 3
-**Research**: Unlikely (internal CRUD with established patterns from Phase 3)
-**Plans**: 5-7 plans
+**Research**: None required
+**Plans**: 7 plans
+**Status**: Complete (2026-02-06)
 
 Plans:
-- [ ] 04-01: Create expense form with amount, description, date, category fields
-- [ ] 04-02: Implement participant picker with smart suggestions
-- [ ] 04-03: Build split equally functionality
-- [ ] 04-04: Build split by percentage functionality
-- [ ] 04-05: Build split by shares/weights functionality
-- [ ] 04-06: Create expense list view with filtering
-- [ ] 04-07: Implement expense detail view and edit capability
+- [x] 04-01: Create expense form with amount, description, date, category fields
+- [x] 04-02: Implement participant picker with smart suggestions
+- [x] 04-03: Build split equally functionality
+- [x] 04-04: Build split by percentage functionality
+- [x] 04-05: Build split by shares/weights functionality
+- [x] 04-06: Integrate participant picker and all split methods into complete flow
+- [x] 04-07: Implement expense list view with filtering and detail view with edit
+
+**Execution**: Parallel (3 waves, max 3 concurrent agents)
+**Wall clock time**: ~15 minutes
+**Wave structure**:
+- Wave 1: 04-01, 04-02, 04-03, 04-04, 04-05 (independent, 5 parallel)
+- Wave 2: 04-06 (depends on 04-01, 04-02, 04-03)
+- Wave 3: 04-07 (depends on 04-01, 04-06)
 
 ### Phase 5: Tagging & Organization
 **Goal**: Implement tag system for organizing expenses with filtering and context-aware suggestions
