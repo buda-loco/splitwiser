@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { Participant, ExpenseSplit } from '@/lib/db/types';
+import type { ExpenseSplit } from '@/lib/db/types';
+import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 
 export function SplitByShares({
   amount,
@@ -9,14 +10,14 @@ export function SplitByShares({
   onChange
 }: {
   amount: number;
-  participants: Participant[];
+  participants: ParticipantWithDetails[];
   onChange: (splits: ExpenseSplit[]) => void;
 }) {
   // Track shares for each participant (initialize to 1 each)
   const [shares, setShares] = useState<Record<string, number>>(() => {
     return Object.fromEntries(
       participants.map(p => [
-        p.id,
+        p.user_id || p.participant_id || '',
         1
       ])
     );
@@ -34,15 +35,15 @@ export function SplitByShares({
     const perShare = amount / totalShares;
 
     return participants.map(participant => {
-      const key = participant.id;
+      const key = participant.user_id || participant.participant_id || '';
       const participantShares = shares[key] || 0;
       const calculatedAmount = perShare * participantShares;
 
       return {
         id: crypto.randomUUID(),
         expense_id: '',
-        user_id: participant.claimed_by_user_id,
-        participant_id: participant.id,
+        user_id: participant.user_id,
+        participant_id: participant.participant_id,
         amount: Math.round(calculatedAmount * 100) / 100, // Round to 2 decimals
         split_type: 'shares' as const,
         split_value: participantShares,
@@ -82,10 +83,11 @@ export function SplitByShares({
       {/* Share inputs */}
       <div className="space-y-2">
         {participants.map(participant => {
-          const key = participant.id;
+          const key = participant.user_id || participant.participant_id || '';
           const participantShares = shares[key] || 0;
           const split = splits.find(s =>
-            s.participant_id === participant.id
+            (s.user_id && s.user_id === participant.user_id) ||
+            (s.participant_id && s.participant_id === participant.participant_id)
           );
 
           return (

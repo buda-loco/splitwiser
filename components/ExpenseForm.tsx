@@ -2,6 +2,14 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { ParticipantPicker } from './ParticipantPicker';
+import { SplitEqual } from './SplitEqual';
+import { SplitByPercentage } from './SplitByPercentage';
+import { SplitByShares } from './SplitByShares';
+import type { ExpenseSplit } from '@/lib/db/types';
+import type { ParticipantWithDetails } from '@/hooks/useParticipants';
+
+type SplitMethod = 'equal' | 'percentage' | 'shares' | 'exact';
 
 /**
  * Form data type for expense creation
@@ -12,14 +20,19 @@ export type ExpenseFormData = {
   description: string;
   category: string;
   expense_date: string;
+  participants: ParticipantWithDetails[];
+  splits: ExpenseSplit[];
 };
 
 /**
  * ExpenseForm component with iOS-native styling and validation
  *
  * Features:
+ * - 3-step flow: Basic info → Participants → Split method
  * - Amount input with currency selector
  * - Description, category, and date fields
+ * - Participant picker with smart suggestions
+ * - Multiple split methods (equal/percentage/shares)
  * - Inline validation with error messages
  * - iOS-native design (San Francisco font, native controls)
  * - Disabled submit when form is invalid
@@ -39,6 +52,14 @@ export function ExpenseForm({
   const [expenseDate, setExpenseDate] = useState(
     new Date().toISOString().split('T')[0]
   );
+
+  // Participant and split state
+  const [participants, setParticipants] = useState<ParticipantWithDetails[]>([]);
+  const [splitMethod, setSplitMethod] = useState<SplitMethod>('equal');
+  const [splits, setSplits] = useState<ExpenseSplit[]>([]);
+
+  // Multi-step navigation
+  const [step, setStep] = useState<'basic' | 'participants' | 'splits'>('basic');
 
   // Track which fields have been touched for validation display
   const [touched, setTouched] = useState({
@@ -73,8 +94,11 @@ export function ExpenseForm({
     })()
   };
 
-  // Form is valid when all fields have no errors
-  const isValid = Object.values(errors).every(error => error === null);
+  // Step validation
+  const basicValid = Object.values(errors).every(error => error === null);
+  const participantsValid = participants.length > 0;
+  const splitsValid = splits.length > 0 &&
+    Math.abs(splits.reduce((sum, s) => sum + s.amount, 0) - parseFloat(amount || '0')) < 0.01;
 
   // Handle field blur to mark as touched
   const handleBlur = (field: keyof typeof touched) => {
@@ -85,35 +109,52 @@ export function ExpenseForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Mark all fields as touched to show validation errors
-    setTouched({
-      amount: true,
-      description: true,
-      category: true,
-      expense_date: true
-    });
-
-    // Only submit if valid
-    if (isValid) {
-      onSubmit({
-        amount: parseFloat(amount),
-        currency,
-        description,
-        category,
-        expense_date: expenseDate
-      });
-
-      // Clear form after successful submission
-      setAmount('');
-      setDescription('');
-      setCategory('');
-      setExpenseDate(new Date().toISOString().split('T')[0]);
+    if (step === 'basic') {
+      // Mark all fields as touched to show validation errors
       setTouched({
-        amount: false,
-        description: false,
-        category: false,
-        expense_date: false
+        amount: true,
+        description: true,
+        category: true,
+        expense_date: true
       });
+
+      // Only advance if basic form is valid
+      if (basicValid) {
+        setStep('participants');
+      }
+    } else if (step === 'participants') {
+      // Advance to split method selection if participants selected
+      if (participantsValid) {
+        setStep('splits');
+      }
+    } else if (step === 'splits') {
+      // Final submission
+      if (splitsValid) {
+        onSubmit({
+          amount: parseFloat(amount),
+          currency,
+          description,
+          category,
+          expense_date: expenseDate,
+          participants,
+          splits
+        });
+
+        // Clear form after successful submission
+        setAmount('');
+        setDescription('');
+        setCategory('');
+        setExpenseDate(new Date().toISOString().split('T')[0]);
+        setParticipants([]);
+        setSplits([]);
+        setStep('basic');
+        setTouched({
+          amount: false,
+          description: false,
+          category: false,
+          expense_date: false
+        });
+      }
     }
   };
 
@@ -130,6 +171,21 @@ export function ExpenseForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Step indicator */}
+      <div className="flex gap-2 mb-6">
+        <div className={`flex-1 h-1 rounded transition-colors ${step === 'basic' ? 'bg-ios-blue' : 'bg-ios-gray5 dark:bg-gray-700'}`} />
+        <div className={`flex-1 h-1 rounded transition-colors ${step === 'participants' ? 'bg-ios-blue' : 'bg-ios-gray5 dark:bg-gray-700'}`} />
+        <div className={`flex-1 h-1 rounded transition-colors ${step === 'splits' ? 'bg-ios-blue' : 'bg-ios-gray5 dark:bg-gray-700'}`} />
+      </div>
+
+      {/* Step 1: Basic info */}
+      {step === 'basic' && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="space-y-5"
+        >
       {/* Amount and Currency */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -277,6 +333,128 @@ export function ExpenseForm({
           </motion.p>
         )}
       </div>
+        </motion.div>
+      )}
+
+      {/* Step 2: Participants */}
+      {step === 'participants' && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="space-y-4"
+        >
+          <button
+            type="button"
+            onClick={() => setStep('basic')}
+            className="flex items-center gap-2 text-ios-blue dark:text-blue-400 font-medium active:opacity-70 transition-opacity"
+          >
+            <span>←</span>
+            <span>Back</span>
+          </button>
+
+          <ParticipantPicker
+            selected={participants}
+            onChange={setParticipants}
+          />
+
+          {!participantsValid && (
+            <p className="text-sm text-ios-red mt-2">
+              Please select at least one participant
+            </p>
+          )}
+        </motion.div>
+      )}
+
+      {/* Step 3: Split method */}
+      {step === 'splits' && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="space-y-4"
+        >
+          <button
+            type="button"
+            onClick={() => setStep('participants')}
+            className="flex items-center gap-2 text-ios-blue dark:text-blue-400 font-medium active:opacity-70 transition-opacity"
+          >
+            <span>←</span>
+            <span>Back</span>
+          </button>
+
+          {/* Split method selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              How to split?
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSplitMethod('equal')}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  splitMethod === 'equal'
+                    ? 'bg-ios-blue text-white'
+                    : 'bg-ios-gray6 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
+                }`}
+              >
+                Equally
+              </button>
+              <button
+                type="button"
+                onClick={() => setSplitMethod('percentage')}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  splitMethod === 'percentage'
+                    ? 'bg-ios-blue text-white'
+                    : 'bg-ios-gray6 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
+                }`}
+              >
+                By %
+              </button>
+              <button
+                type="button"
+                onClick={() => setSplitMethod('shares')}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  splitMethod === 'shares'
+                    ? 'bg-ios-blue text-white'
+                    : 'bg-ios-gray6 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
+                }`}
+              >
+                By Shares
+              </button>
+            </div>
+          </div>
+
+          {/* Split component */}
+          {splitMethod === 'equal' && (
+            <SplitEqual
+              amount={parseFloat(amount)}
+              participants={participants}
+              onChange={setSplits}
+            />
+          )}
+          {splitMethod === 'percentage' && (
+            <SplitByPercentage
+              amount={parseFloat(amount)}
+              participants={participants}
+              onChange={setSplits}
+            />
+          )}
+          {splitMethod === 'shares' && (
+            <SplitByShares
+              amount={parseFloat(amount)}
+              participants={participants}
+              onChange={setSplits}
+            />
+          )}
+
+          {!splitsValid && splits.length > 0 && (
+            <p className="text-sm text-ios-red mt-2">
+              Split amounts must total ${parseFloat(amount).toFixed(2)}
+            </p>
+          )}
+        </motion.div>
+      )}
 
       {/* Action buttons */}
       <div className="flex gap-3 pt-4">
@@ -292,15 +470,27 @@ export function ExpenseForm({
         )}
         <motion.button
           type="submit"
-          disabled={!isValid}
-          whileTap={{ scale: isValid ? 0.97 : 1 }}
+          disabled={
+            (step === 'basic' && !basicValid) ||
+            (step === 'participants' && !participantsValid) ||
+            (step === 'splits' && !splitsValid)
+          }
+          whileTap={{ scale:
+            (step === 'basic' && basicValid) ||
+            (step === 'participants' && participantsValid) ||
+            (step === 'splits' && splitsValid)
+              ? 0.97
+              : 1
+          }}
           className={`flex-1 px-6 py-3.5 rounded-xl font-semibold text-base ${
-            isValid
+            (step === 'basic' && basicValid) ||
+            (step === 'participants' && participantsValid) ||
+            (step === 'splits' && splitsValid)
               ? 'bg-ios-blue text-white'
               : 'bg-ios-gray5 dark:bg-gray-700 text-ios-gray2 cursor-not-allowed'
           }`}
         >
-          Add Expense
+          {step === 'splits' ? 'Create Expense' : 'Next'}
         </motion.button>
       </div>
     </form>

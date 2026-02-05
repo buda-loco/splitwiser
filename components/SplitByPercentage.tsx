@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { Participant, ExpenseSplit } from '@/lib/db/types';
+import type { ExpenseSplit } from '@/lib/db/types';
+import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 
 export function SplitByPercentage({
   amount,
@@ -9,7 +10,7 @@ export function SplitByPercentage({
   onChange
 }: {
   amount: number;
-  participants: Participant[];
+  participants: ParticipantWithDetails[];
   onChange: (splits: ExpenseSplit[]) => void;
 }) {
   // Track percentage for each participant
@@ -18,7 +19,7 @@ export function SplitByPercentage({
     const equalPercentage = 100 / participants.length;
     return Object.fromEntries(
       participants.map(p => [
-        p.id,
+        p.user_id || p.participant_id || '',
         Math.floor(equalPercentage * 100) / 100
       ])
     );
@@ -27,15 +28,15 @@ export function SplitByPercentage({
   // Calculate splits from percentages
   const splits = useMemo(() => {
     return participants.map(participant => {
-      const key = participant.id;
+      const key = participant.user_id || participant.participant_id || '';
       const percentage = percentages[key] || 0;
       const calculatedAmount = (amount * percentage) / 100;
 
       return {
         id: crypto.randomUUID(),
         expense_id: '',
-        user_id: participant.claimed_by_user_id,
-        participant_id: participant.id,
+        user_id: participant.user_id,
+        participant_id: participant.participant_id,
         amount: Math.round(calculatedAmount * 100) / 100, // Round to 2 decimals
         split_type: 'percentage' as const,
         split_value: percentage,
@@ -76,10 +77,11 @@ export function SplitByPercentage({
       {/* Percentage inputs */}
       <div className="space-y-2">
         {participants.map(participant => {
-          const key = participant.id;
+          const key = participant.user_id || participant.participant_id || '';
           const percentage = percentages[key] || 0;
           const split = splits.find(s =>
-            s.participant_id === participant.id
+            (s.user_id && s.user_id === participant.user_id) ||
+            (s.participant_id && s.participant_id === participant.participant_id)
           );
 
           return (

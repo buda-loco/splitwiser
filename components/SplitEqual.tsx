@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useEffect } from 'react';
-import type { Participant, ExpenseSplit } from '@/lib/db/types';
+import type { ExpenseSplit } from '@/lib/db/types';
+import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 
 export function SplitEqual({
   amount,
@@ -9,7 +10,7 @@ export function SplitEqual({
   onChange
 }: {
   amount: number;
-  participants: Participant[];
+  participants: ParticipantWithDetails[];
   onChange: (splits: ExpenseSplit[]) => void;
 }) {
   // Calculate equal split
@@ -26,8 +27,8 @@ export function SplitEqual({
     return participants.map((participant, index) => ({
       id: crypto.randomUUID(),
       expense_id: '', // Will be filled when expense created
-      user_id: participant.claimed_by_user_id,
-      participant_id: participant.id,
+      user_id: participant.user_id,
+      participant_id: participant.participant_id,
       amount: baseAmount + (index < remainder ? 0.01 : 0),
       split_type: 'equal' as const,
       split_value: null, // Not used for equal split

@@ -1,9 +1,10 @@
 'use client';
 
-import { ExpenseForm, ExpenseFormData } from '@/components/ExpenseForm';
+import { ExpenseForm, type ExpenseFormData } from '@/components/ExpenseForm';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { addParticipantToExpense, createSplit } from '@/lib/db/stores';
 
 /**
  * New Expense Page
@@ -29,21 +30,39 @@ export default function NewExpensePage() {
       // For now, use a temporary user ID placeholder
       const currentUserId = 'temp-user-id';
 
-      // Prepare expense data with user IDs
-      const expense = {
-        ...formData,
+      // Prepare expense data (without participants and splits)
+      const expenseData = {
+        amount: formData.amount,
+        currency: formData.currency,
+        description: formData.description,
+        category: formData.category,
+        expense_date: formData.expense_date,
         paid_by_user_id: currentUserId,
         created_by_user_id: currentUserId,
-        // Note: Participants and splits will be added in later plans (04-02, 04-03)
-        // For now, expenses are created without splits
       };
 
       // Create expense optimistically (appears instantly in IndexedDB)
-      const id = await createExpense(expense);
+      const expenseId = await createExpense(expenseData);
 
-      // Navigate to expense detail page
-      // Note: This assumes the expense detail page exists or will be created
-      // For now, navigate back to home (expenses list)
+      // Add participants to the expense
+      for (const participant of formData.participants) {
+        await addParticipantToExpense(
+          expenseId,
+          participant.user_id || undefined,
+          participant.participant_id || undefined
+        );
+      }
+
+      // Add splits to the expense
+      for (const split of formData.splits) {
+        await createSplit({
+          ...split,
+          expense_id: expenseId
+        });
+      }
+
+      // Navigate to expense list
+      // Note: Will navigate to expense detail page once it's implemented
       router.push('/');
     } catch (err) {
       // Error is already captured by useOptimisticMutation
