@@ -2,24 +2,28 @@
 
 import { useState } from 'react';
 import { useParticipants, type ParticipantWithDetails } from '@/hooks/useParticipants';
+import { useTagSuggestions } from '@/hooks/useTagSuggestions';
 
 interface ParticipantPickerProps {
   selected: ParticipantWithDetails[];
   onChange: (participants: ParticipantWithDetails[]) => void;
+  selectedTags?: string[];
 }
 
 /**
  * iOS-native participant selection component with smart suggestions
  *
  * Features:
+ * - Shows tag-based participant suggestions when tags selected
  * - Shows recent participants from expense history
  * - Toggle selection with visual feedback
  * - Add new participants inline
  * - Expandable suggestions (show 5, expand to 10)
  * - iOS-native button and input styling
  */
-export function ParticipantPicker({ selected, onChange }: ParticipantPickerProps) {
+export function ParticipantPicker({ selected, onChange, selectedTags }: ParticipantPickerProps) {
   const { recent, frequent, loading } = useParticipants();
+  const { suggestedParticipants: tagSuggestions } = useTagSuggestions(selectedTags || []);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [newParticipantName, setNewParticipantName] = useState('');
 
@@ -82,10 +86,41 @@ export function ParticipantPicker({ selected, onChange }: ParticipantPickerProps
           </div>
         )}
 
+        {/* Tag-based suggestions (highest priority when tags selected) */}
+        {tagSuggestions.length > 0 && selectedTags && selectedTags.length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+              Suggested for &apos;{selectedTags[0]}&apos;
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {tagSuggestions.map(p => {
+                const isSelected = selected.some(
+                  s => s.user_id === p.user_id && s.participant_id === p.participant_id
+                );
+
+                return (
+                  <button
+                    key={p.user_id || p.participant_id}
+                    onClick={() => handleSelect(p)}
+                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                      isSelected
+                        ? 'bg-blue-100 text-blue-700 border-2 border-blue-500 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-500'
+                        : 'bg-gray-100 text-gray-700 border-2 border-ios-blue dark:bg-gray-700 dark:text-gray-200 dark:border-blue-500 active:bg-gray-200 dark:active:bg-gray-600'
+                    }`}
+                    type="button"
+                  >
+                    {p.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Recent suggestions (always show top 5) */}
         {!loading && recent.length > 0 && (
           <div className="mb-3">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Recent</p>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Recent</p>
             <div className="flex flex-wrap gap-2">
               {recent.slice(0, showAllSuggestions ? 10 : 5).map(p => {
                 const isSelected = selected.some(
@@ -128,7 +163,7 @@ export function ParticipantPicker({ selected, onChange }: ParticipantPickerProps
             type="text"
             value={newParticipantName}
             onChange={(e) => setNewParticipantName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddNew()}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNew(); } }}
             placeholder="Add someone new..."
             className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
