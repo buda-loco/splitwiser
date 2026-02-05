@@ -7,6 +7,7 @@
 
 import { getDatabase, STORES, promisifyRequest } from '@/lib/db/indexeddb';
 import { ExchangeRateCache, CurrencyCode } from './types';
+import { BalanceEntry } from '@/lib/balances/types';
 
 /**
  * Get exchange rate between two currencies
@@ -104,4 +105,56 @@ async function saveCachedRate(cache: ExchangeRateCache): Promise<void> {
  */
 function isExpired(cache: ExchangeRateCache): boolean {
   return new Date(cache.expires_at) < new Date();
+}
+
+/**
+ * Convert an amount from one currency to another
+ *
+ * @param amount - Amount to convert
+ * @param from - Source currency code
+ * @param to - Target currency code
+ * @returns Converted amount rounded to 2 decimal places
+ *
+ * Example: convertAmount(100, 'USD', 'EUR') might return 85.00
+ */
+export async function convertAmount(
+  amount: number,
+  from: CurrencyCode,
+  to: CurrencyCode
+): Promise<number> {
+  const rate = await getExchangeRate(from, to);
+  return parseFloat((amount * rate).toFixed(2));
+}
+
+/**
+ * Convert all balance entries to a target currency
+ *
+ * @param balances - Array of balance entries to convert
+ * @param targetCurrency - Target currency for conversion
+ * @returns Array of balance entries with amounts converted to target currency
+ *
+ * Used for multi-currency balance view where all debts are shown in a single currency.
+ * Preserves original balance structure, only updates amount and currency fields.
+ */
+export async function convertBalances(
+  balances: BalanceEntry[],
+  targetCurrency: CurrencyCode
+): Promise<BalanceEntry[]> {
+  const converted: BalanceEntry[] = [];
+
+  for (const balance of balances) {
+    const convertedAmount = await convertAmount(
+      balance.amount,
+      balance.currency as CurrencyCode,
+      targetCurrency
+    );
+
+    converted.push({
+      ...balance,
+      amount: convertedAmount,
+      currency: targetCurrency,
+    });
+  }
+
+  return converted;
 }
