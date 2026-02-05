@@ -4,6 +4,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Splitwiser",
   description: "Beautiful expense splitting for iOS",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Splitwiser",
+  },
 };
 
 export const viewport: Viewport = {
