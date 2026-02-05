@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ParticipantPicker } from './ParticipantPicker';
 import { SplitEqual } from './SplitEqual';
 import { SplitByPercentage } from './SplitByPercentage';
 import { SplitByShares } from './SplitByShares';
 import { TagInput } from './TagInput';
+import { detectCurrencyFromLocation } from '@/lib/currency/geolocation';
 import type { ExpenseSplit } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 
@@ -56,6 +57,7 @@ export function ExpenseForm({
   // Form state
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
   const [currency, setCurrency] = useState(initialData?.currency || 'AUD');
+  const [currencyAutoDetected, setCurrencyAutoDetected] = useState(false);
   const [description, setDescription] = useState(initialData?.description || '');
   const [category, setCategory] = useState(initialData?.category || '');
   const [expenseDate, setExpenseDate] = useState(
@@ -84,6 +86,29 @@ export function ExpenseForm({
     category: false,
     expense_date: false
   });
+
+  // Auto-detect currency from location on mount
+  useEffect(() => {
+    async function autoDetectCurrency() {
+      // Skip auto-detection if currency was provided in initialData
+      if (initialData?.currency) {
+        return;
+      }
+
+      const detected = await detectCurrencyFromLocation();
+
+      if (detected) {
+        setCurrency(detected);
+        setCurrencyAutoDetected(true);
+      } else {
+        // Fall back to default currency (AUD)
+        // TODO: Load from user profile currency_preference in future
+        setCurrency('AUD');
+      }
+    }
+
+    autoDetectCurrency();
+  }, [initialData?.currency]);  // Run once on mount (unless initialData changes)
 
   // Validation errors
   const errors = {
@@ -176,6 +201,7 @@ export function ExpenseForm({
         setTags([]);
         setManualRate('');
         setShowManualRate(false);
+        setCurrencyAutoDetected(false);
         setStep('basic');
         setTouched({
           amount: false,
@@ -196,6 +222,12 @@ export function ExpenseForm({
       case 'GBP': return '£';
       default: return curr;
     }
+  };
+
+  // Handle currency change (clear auto-detected flag on manual change)
+  const handleCurrencyChange = (newCurrency: string) => {
+    setCurrency(newCurrency);
+    setCurrencyAutoDetected(false);  // User manually changed, so no longer auto-detected
   };
 
   return (
@@ -245,6 +277,7 @@ export function ExpenseForm({
               <motion.p
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
+                role="alert"
                 className="mt-1.5 text-xs text-ios-red"
               >
                 {errors.amount}
@@ -255,7 +288,7 @@ export function ExpenseForm({
           {/* Currency selector */}
           <select
             value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
+            onChange={(e) => handleCurrencyChange(e.target.value)}
             className="px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base font-medium"
           >
             <option value="AUD">AUD</option>
@@ -264,6 +297,17 @@ export function ExpenseForm({
             <option value="GBP">GBP</option>
           </select>
         </div>
+
+        {/* Auto-detection indicator */}
+        {currencyAutoDetected && (
+          <motion.p
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-1.5 text-xs text-ios-blue dark:text-blue-400"
+          >
+            Auto-detected: {currency}
+          </motion.p>
+        )}
       </div>
 
       {/* Manual Exchange Rate (optional) */}
@@ -333,6 +377,7 @@ export function ExpenseForm({
           <motion.p
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
+            role="alert"
             className="mt-1.5 text-xs text-ios-red"
           >
             {errors.description}
@@ -373,6 +418,7 @@ export function ExpenseForm({
           <motion.p
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
+            role="alert"
             className="mt-1.5 text-xs text-ios-red"
           >
             {errors.category}
@@ -401,6 +447,7 @@ export function ExpenseForm({
           <motion.p
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
+            role="alert"
             className="mt-1.5 text-xs text-ios-red"
           >
             {errors.expense_date}
