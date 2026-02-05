@@ -2,6 +2,7 @@
 
 import { ExpenseForm, type ExpenseFormData } from '@/components/ExpenseForm';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { addParticipantToExpense, createSplit } from '@/lib/db/stores';
@@ -22,13 +23,14 @@ import { addParticipantToExpense, createSplit } from '@/lib/db/stores';
  */
 export default function NewExpensePage() {
   const { createExpense, isLoading, error } = useOptimisticMutation();
+  const { user } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (formData: ExpenseFormData) => {
+    if (!user) return;
+
     try {
-      // TODO: Replace with actual auth when authentication is implemented
-      // For now, use a temporary user ID placeholder
-      const currentUserId = 'temp-user-id';
+      const currentUserId = user.id;
 
       // Prepare expense data (without participants and splits)
       const expenseData = {

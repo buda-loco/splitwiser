@@ -175,8 +175,8 @@ export function ExpenseForm({
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Step indicator */}
       <div className="flex gap-2 mb-6">
-        <div className={`flex-1 h-1 rounded transition-colors ${step === 'basic' ? 'bg-ios-blue' : 'bg-ios-gray5 dark:bg-gray-700'}`} />
-        <div className={`flex-1 h-1 rounded transition-colors ${step === 'participants' ? 'bg-ios-blue' : 'bg-ios-gray5 dark:bg-gray-700'}`} />
+        <div className="flex-1 h-1 rounded transition-colors bg-ios-blue" />
+        <div className={`flex-1 h-1 rounded transition-colors ${step === 'participants' || step === 'splits' ? 'bg-ios-blue' : 'bg-ios-gray5 dark:bg-gray-700'}`} />
         <div className={`flex-1 h-1 rounded transition-colors ${step === 'splits' ? 'bg-ios-blue' : 'bg-ios-gray5 dark:bg-gray-700'}`} />
       </div>
 

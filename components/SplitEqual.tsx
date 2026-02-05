@@ -79,7 +79,7 @@ export function SplitEqual({
       {/* Total verification (should always match) */}
       {!matches && (
         <div className="text-xs text-red-600">
-          Warning: Total ${total.toFixed(2)} doesn't match amount ${amount.toFixed(2)}
+          Warning: Total ${total.toFixed(2)} does not match amount ${amount.toFixed(2)}
         </div>
       )}
 

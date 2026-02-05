@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { ExpenseSplit } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 
@@ -46,7 +46,7 @@ export function SplitByPercentage({
   }, [amount, participants, percentages]);
 
   // Update parent when splits change
-  useMemo(() => {
+  useEffect(() => {
     onChange(splits);
   }, [splits, onChange]);
 

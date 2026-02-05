@@ -87,8 +87,8 @@ export function ExpenseList() {
             <motion.button
               key={tag}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-              className={`px-4 py-2 rounded-full whitespace-nowrap text-sm flex items-center gap-2 ${
+              onClick={() => router.push(`/tags/${encodeURIComponent(tag)}`)}
+              className={`px-4 py-2 rounded-full whitespace-nowrap text-sm flex items-center gap-2 transition-colors hover:bg-ios-blue/20 dark:hover:bg-gray-700 ${
                 selectedTag === tag
                   ? 'bg-ios-blue text-white'
                   : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
@@ -184,9 +184,9 @@ export function ExpenseList() {
                       key={tag}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedTag(tag);
+                        router.push(`/tags/${encodeURIComponent(tag)}`);
                       }}
-                      className="text-xs rounded-full px-2 py-1 bg-ios-blue/10 text-ios-blue dark:bg-gray-800 dark:text-gray-300 cursor-pointer hover:bg-ios-blue/20 dark:hover:bg-gray-700"
+                      className="text-xs rounded-full px-2 py-1 bg-ios-blue/10 text-ios-blue dark:bg-gray-800 dark:text-gray-300 cursor-pointer hover:bg-ios-blue/20 dark:hover:bg-gray-700 transition-colors"
                     >
                       {tag}
                     </span>
