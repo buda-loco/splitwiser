@@ -373,6 +373,7 @@ export function ExpenseForm({
           <ParticipantPicker
             selected={participants}
             onChange={setParticipants}
+            selectedTags={tags}
           />
 
           {!participantsValid && (
