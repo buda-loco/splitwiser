@@ -108,3 +108,52 @@ CREATE TRIGGER update_participants_updated_at
   BEFORE UPDATE ON participants
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Invite Tokens Schema
+-- Stores hashed invite tokens for participant onboarding
+-- Security: Only token hashes are stored (not raw tokens)
+
+-- Create invite_tokens table
+CREATE TABLE IF NOT EXISTS invite_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token_hash TEXT NOT NULL UNIQUE,
+  participant_id UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+  created_by_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '30 days',
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index on token_hash for fast invite link lookups
+CREATE INDEX IF NOT EXISTS idx_invite_tokens_hash
+  ON invite_tokens(token_hash);
+
+-- Index on participant_id for finding invites by participant
+CREATE INDEX IF NOT EXISTS idx_invite_tokens_participant
+  ON invite_tokens(participant_id);
+
+-- Enable Row Level Security
+ALTER TABLE invite_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Anyone can view valid invite tokens
+-- This is intentional - the invite landing page needs to fetch token details
+-- before authentication. Security is maintained by the token hash system.
+CREATE POLICY "Anyone can view valid invite tokens"
+  ON invite_tokens
+  FOR SELECT
+  USING (expires_at > NOW() AND used_at IS NULL);
+
+-- Policy: Authenticated users can create invite tokens
+CREATE POLICY "Users can create invite tokens"
+  ON invite_tokens
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (created_by_user_id = auth.uid());
+
+-- Policy: Tokens can be marked as used
+-- Any valid token can be marked used (needed for unauthenticated flow)
+CREATE POLICY "Tokens can be marked as used"
+  ON invite_tokens
+  FOR UPDATE
+  USING (expires_at > NOW())
+  WITH CHECK (used_at IS NOT NULL);
