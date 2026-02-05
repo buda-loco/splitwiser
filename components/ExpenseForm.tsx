@@ -38,25 +38,27 @@ export type ExpenseFormData = {
  * - Disabled submit when form is invalid
  */
 export function ExpenseForm({
+  initialData,
   onSubmit,
   onCancel
 }: {
+  initialData?: Partial<ExpenseFormData>;
   onSubmit: (expense: ExpenseFormData) => void;
   onCancel?: () => void;
 }) {
   // Form state
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('AUD');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
+  const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
+  const [currency, setCurrency] = useState(initialData?.currency || 'AUD');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [category, setCategory] = useState(initialData?.category || '');
   const [expenseDate, setExpenseDate] = useState(
-    new Date().toISOString().split('T')[0]
+    initialData?.expense_date || new Date().toISOString().split('T')[0]
   );
 
   // Participant and split state
-  const [participants, setParticipants] = useState<ParticipantWithDetails[]>([]);
+  const [participants, setParticipants] = useState<ParticipantWithDetails[]>(initialData?.participants || []);
   const [splitMethod, setSplitMethod] = useState<SplitMethod>('equal');
-  const [splits, setSplits] = useState<ExpenseSplit[]>([]);
+  const [splits, setSplits] = useState<ExpenseSplit[]>(initialData?.splits || []);
 
   // Multi-step navigation
   const [step, setStep] = useState<'basic' | 'participants' | 'splits'>('basic');
