@@ -154,6 +154,29 @@ export function ExpenseList() {
         )}
       </div>
 
+      {/* View Balances button */}
+      <div className="px-4 pb-4">
+        <button
+          onClick={() => router.push('/balances')}
+          className="w-full px-4 py-3 rounded-xl border-2 border-ios-blue text-ios-blue font-medium hover:bg-ios-blue/10 dark:hover:bg-ios-blue/20 transition-colors flex items-center justify-center gap-2"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"
+            />
+          </svg>
+          View Balances
+        </button>
+      </div>
+
       {/* Expense list */}
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
         {expenses.length === 0 ? (
@@ -226,6 +249,7 @@ export function ExpenseList() {
       {/* FAB (Floating Action Button) */}
       <button
         onClick={() => router.push('/expenses/new')}
+        aria-label="Create new expense"
         className="fixed bottom-20 right-4 w-14 h-14 bg-ios-blue text-white rounded-full shadow-lg flex items-center justify-center text-2xl"
       >
         +
