@@ -335,6 +335,20 @@ export async function removeTagFromExpense(
   }
 }
 
+/**
+ * Get all unique tags across all expenses
+ */
+export async function getAllTags(): Promise<string[]> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.EXPENSE_TAGS], 'readonly');
+  const store = transaction.objectStore(STORES.EXPENSE_TAGS);
+  const allTags = await promisifyRequest(store.getAll());
+
+  // Get unique tags
+  const uniqueTags = new Set(allTags.map(t => t.tag));
+  return Array.from(uniqueTags).sort();
+}
+
 // =====================================================
 // Settlement Operations
 // =====================================================
