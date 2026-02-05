@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { type NextRequest } from 'next/server'
+import { autoClaimOnLogin } from '@/lib/actions/claim'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -18,6 +19,19 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Auth callback error:', error)
       return NextResponse.redirect(new URL('/auth/error', request.url))
+    }
+
+    // Get the authenticated user
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Attempt auto-claim if user has email
+    if (user?.email) {
+      const { needsManualClaim } = await autoClaimOnLogin(user.email)
+
+      // If multiple participants found, redirect to claim page
+      if (needsManualClaim) {
+        return NextResponse.redirect(new URL('/auth/claim', request.url))
+      }
     }
 
     // Successful authentication, redirect to home
