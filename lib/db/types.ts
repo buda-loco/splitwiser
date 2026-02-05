@@ -60,3 +60,20 @@ export type ParticipantInsert = Omit<Participant, 'id' | 'created_at' | 'updated
  * Only name, email, and phone can be updated
  */
 export type ParticipantUpdate = Partial<Pick<Participant, 'name' | 'email' | 'phone'>>;
+
+/**
+ * Invite token record as stored in the database
+ *
+ * Invite tokens enable secure participant onboarding via invite links.
+ * Security model: Raw tokens are sent in URLs, hashed tokens are stored in DB.
+ * This prevents token theft if the database is compromised.
+ */
+export type InviteToken = {
+  id: string;
+  token_hash: string;
+  participant_id: string;
+  created_by_user_id: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+};
