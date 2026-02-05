@@ -14,8 +14,8 @@ None
 - [x] **Phase 2: Authentication & User Model** - Supabase auth, hybrid account system, user profiles (Completed: 2026-02-06)
 - [x] **Phase 3: Data Model & Offline Foundation** - Database schema, local storage, sync architecture (Completed: 2026-02-06)
 - [x] **Phase 4: Core Expense Creation** - Add expenses, participants, splitting methods (Completed: 2026-02-06)
-- [ ] **Phase 5: Tagging & Organization** - Tag system, filtering, smart suggestions (In progress)
-- [ ] **Phase 6: Balance Calculation Engine** - Global balances, debt simplification, multi-currency
+- [x] **Phase 5: Tagging & Organization** - Tag system, filtering, smart suggestions (Complete)
+- [x] **Phase 6: Balance Calculation Engine** - Global balances, debt simplification, multi-currency (Complete)
 - [ ] **Phase 7: Settlement & Payments** - Record settlements (global, tag-specific, partial)
 - [ ] **Phase 8: Templates & Efficiency Features** - Predefined split templates, quick-apply
 - [ ] **Phase 9: Version History & Undo** - Expense edit tracking, undo capability, activity feed
@@ -113,20 +113,22 @@ Plans:
 
 ### Phase 6: Balance Calculation Engine
 **Goal**: Calculate global balances per person, implement debt simplification toggle, and multi-currency conversion
+**Status**: Complete (2026-02-06)
 **Depends on**: Phase 4
 **Research**: Likely (debt simplification algorithm, currency API integration)
 **Research topics**: Debt simplification algorithms (minimize transaction count), free currency exchange rate APIs (exchangerate-api.com, ECB), currency conversion patterns
-**Plans**: 6-8 plans
+**Plans**: 8 plans (all complete)
+**Execution**: Parallel (4 waves, ~28 min wall-clock time)
 
 Plans:
-- [ ] 06-01: Implement balance calculation across all expenses per person
-- [ ] 06-02: Build debt simplification algorithm (minimize transactions)
-- [ ] 06-03: Create balance view toggle (simplified vs direct)
-- [ ] 06-04: Integrate currency exchange rate API with caching
-- [ ] 06-05: Implement multi-currency balance view toggle (AUD, EUR, USD, etc.)
-- [ ] 06-06: Add manual exchange rate override per expense
-- [ ] 06-07: Create balance summary screen showing who owes whom
-- [ ] 06-08: Implement currency auto-detection by location
+- [x] 06-01: Implement balance calculation across all expenses per person
+- [x] 06-02: Build debt simplification algorithm (minimize transactions)
+- [x] 06-03: Create balance view toggle (simplified vs direct)
+- [x] 06-04: Integrate currency exchange rate API with caching
+- [x] 06-05: Implement multi-currency balance view toggle (AUD, EUR, USD, etc.)
+- [x] 06-06: Add manual exchange rate override per expense
+- [x] 06-07: Create balance summary screen showing who owes whom
+- [x] 06-08: Implement currency auto-detection by location
 
 ### Phase 7: Settlement & Payments
 **Goal**: Record settlements with flexible options (global, tag-specific, partial amounts)
