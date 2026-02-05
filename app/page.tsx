@@ -1,9 +1,14 @@
 export default function Home() {
   return (
-    <div>
-      <main>
-        <h1>Get started by editing app/page.tsx</h1>
-      </main>
-    </div>
+    <main className="min-h-screen pt-safe-top pb-safe-bottom px-4">
+      <div className="max-w-md mx-auto pt-16">
+        <h1 className="text-3xl font-bold text-ios-blue mb-4">
+          Splitwiser
+        </h1>
+        <p className="text-ios-gray">
+          Beautiful expense splitting for iOS
+        </p>
+      </div>
+    </main>
   );
 }
