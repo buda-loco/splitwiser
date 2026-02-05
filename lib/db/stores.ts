@@ -349,6 +349,83 @@ export async function getAllTags(): Promise<string[]> {
   return Array.from(uniqueTags).sort();
 }
 
+/**
+ * Rename a tag across all expenses
+ */
+export async function renameTag(oldTag: string, newTag: string): Promise<void> {
+  const db = await getDatabase();
+  const normalizedOld = oldTag.toLowerCase();
+  const normalizedNew = newTag.toLowerCase();
+
+  if (normalizedOld === normalizedNew) return; // No-op
+
+  const transaction = db.transaction([STORES.EXPENSE_TAGS], 'readwrite');
+  const store = transaction.objectStore(STORES.EXPENSE_TAGS);
+  const tagIndex = store.index('tag');
+
+  // Get all expense_tags with old tag
+  const oldTags = await promisifyRequest(tagIndex.getAll(normalizedOld));
+
+  // For each, update to new tag (if new tag doesn't already exist for that expense)
+  for (const tag of oldTags) {
+    // Check if new tag already exists for this expense
+    const expenseIndex = store.index('expense_id');
+    const existingTags = await promisifyRequest(expenseIndex.getAll(tag.expense_id));
+    const newTagExists = existingTags.some(t => t.tag === normalizedNew);
+
+    if (newTagExists) {
+      // Delete old tag (new already exists)
+      await promisifyRequest(store.delete(tag.id));
+    } else {
+      // Update to new tag
+      await promisifyRequest(store.put({ ...tag, tag: normalizedNew }));
+    }
+  }
+}
+
+/**
+ * Merge multiple tags into a target tag
+ */
+export async function mergeTags(sourceTags: string[], targetTag: string): Promise<void> {
+  // Rename each source tag to target tag (renameTag handles duplicates)
+  for (const source of sourceTags) {
+    await renameTag(source, targetTag);
+  }
+}
+
+/**
+ * Delete a tag from all expenses
+ */
+export async function deleteTag(tag: string): Promise<void> {
+  const db = await getDatabase();
+  const normalizedTag = tag.toLowerCase();
+
+  const transaction = db.transaction([STORES.EXPENSE_TAGS], 'readwrite');
+  const store = transaction.objectStore(STORES.EXPENSE_TAGS);
+  const tagIndex = store.index('tag');
+
+  const tags = await promisifyRequest(tagIndex.getAll(normalizedTag));
+
+  for (const tagRecord of tags) {
+    await promisifyRequest(store.delete(tagRecord.id));
+  }
+}
+
+/**
+ * Get tag usage statistics
+ */
+export async function getTagStats(): Promise<Map<string, number>> {
+  const tags = await getAllTags();
+  const stats = new Map<string, number>();
+
+  for (const tag of tags) {
+    const expenses = await getExpenses({ tag });
+    stats.set(tag, expenses.length);
+  }
+
+  return stats;
+}
+
 // =====================================================
 // Settlement Operations
 // =====================================================
