@@ -1,7 +1,10 @@
 'use client';
 
 import { useBalances } from '@/hooks/useBalances';
-import type { CurrencyCode, SUPPORTED_CURRENCIES } from '@/lib/currency/types';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { getParticipantDisplayName } from '@/lib/utils/display-name';
+import type { CurrencyCode } from '@/lib/currency/types';
+import type { BalanceEntry } from '@/lib/balances/types';
 
 const CURRENCIES: CurrencyCode[] = ['AUD', 'USD', 'EUR', 'GBP'];
 
@@ -13,8 +16,10 @@ const CURRENCIES: CurrencyCode[] = ['AUD', 'USD', 'EUR', 'GBP'];
  * - Multi-currency selector to convert all balances to chosen currency
  * - iOS-native styling with proper dark mode support
  * - Loading and empty states
+ * - Current user highlighting (green for owed to you, red for you owe, gray for others)
  */
 export function BalanceView() {
+  const { user } = useAuth();
   const {
     balances,
     loading,
@@ -23,6 +28,24 @@ export function BalanceView() {
     targetCurrency,
     setTargetCurrency,
   } = useBalances();
+
+  // Determine if a balance entry involves the current user
+  const getBalanceType = (balance: BalanceEntry): 'owed-to-me' | 'i-owe' | 'others' => {
+    if (!user) return 'others';
+
+    // You're owed money (someone owes you)
+    if (balance.to.user_id === user.id) {
+      return 'owed-to-me';
+    }
+
+    // You owe money
+    if (balance.from.user_id === user.id) {
+      return 'i-owe';
+    }
+
+    // Balance between others
+    return 'others';
+  };
 
   if (loading) {
     return (
@@ -75,27 +98,41 @@ export function BalanceView() {
 
       {/* Balance entries */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
-        {balances.balances.map((balance, index) => (
-          <div
-            key={`${balance.from.user_id || balance.from.participant_id}-${balance.to.user_id || balance.to.participant_id}-${index}`}
-            className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm text-ios-gray dark:text-gray-300">
-                  <span className="font-medium">{balance.from.name}</span>
-                  {' owes '}
-                  <span className="font-medium">{balance.to.name}</span>
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-ios-gray dark:text-gray-300">
-                  {balance.currency} {balance.amount.toFixed(2)}
-                </p>
+        {balances.balances.map((balance, index) => {
+          const balanceType = getBalanceType(balance);
+          const fromName = getParticipantDisplayName(balance.from);
+          const toName = getParticipantDisplayName(balance.to);
+
+          // Color classes based on balance type
+          let amountColorClass = 'text-gray-500 dark:text-gray-400'; // Others (gray)
+          if (balanceType === 'owed-to-me') {
+            amountColorClass = 'text-green-600 dark:text-green-500'; // Green for money owed to you
+          } else if (balanceType === 'i-owe') {
+            amountColorClass = 'text-red-600 dark:text-red-500'; // Red for money you owe
+          }
+
+          return (
+            <div
+              key={`${balance.from.user_id || balance.from.participant_id}-${balance.to.user_id || balance.to.participant_id}-${index}`}
+              className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">{fromName}</span>
+                    {' owes '}
+                    <span className="font-medium">{toName}</span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`font-semibold ${amountColorClass}`}>
+                    {balance.currency} {balance.amount.toFixed(2)}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Summary */}
