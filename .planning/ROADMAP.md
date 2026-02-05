@@ -11,7 +11,7 @@ None
 ## Phases
 
 - [x] **Phase 1: Foundation & Setup** - Project structure, Next.js + Supabase configuration, PWA basics (Completed: 2026-02-06)
-- [ ] **Phase 2: Authentication & User Model** - Supabase auth, hybrid account system, user profiles
+- [x] **Phase 2: Authentication & User Model** - Supabase auth, hybrid account system, user profiles (Completed: 2026-02-06)
 - [ ] **Phase 3: Data Model & Offline Foundation** - Database schema, local storage, sync architecture
 - [ ] **Phase 4: Core Expense Creation** - Add expenses, participants, splitting methods
 - [ ] **Phase 5: Tagging & Organization** - Tag system, filtering, smart suggestions
