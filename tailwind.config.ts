@@ -36,6 +36,9 @@ const config: Config = {
           gray6: "#F2F2F7",
         },
       },
+      animation: {
+        'spin-slow': 'spin 2s linear infinite',
+      },
     },
   },
   plugins: [],
