@@ -8,7 +8,7 @@
 
 // Database configuration
 const DB_NAME = 'splitwiser-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented for exchange_rates store
 
 // Store names matching our schema
 export const STORES = {
@@ -19,6 +19,7 @@ export const STORES = {
   SETTLEMENTS: 'settlements',
   EXPENSE_VERSIONS: 'expense_versions',
   SYNC_QUEUE: 'sync_queue', // For pending operations
+  EXCHANGE_RATES: 'exchange_rates', // For cached exchange rates
 } as const;
 
 /**
@@ -90,6 +91,12 @@ export function initDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORES.SYNC_QUEUE)) {
         const syncStore = db.createObjectStore(STORES.SYNC_QUEUE, { keyPath: 'id' });
         syncStore.createIndex('status', 'status', { unique: false });
+      }
+
+      // Create exchange_rates store for cached currency exchange rates
+      if (!db.objectStoreNames.contains(STORES.EXCHANGE_RATES)) {
+        const ratesStore = db.createObjectStore(STORES.EXCHANGE_RATES, { keyPath: 'base_currency' });
+        ratesStore.createIndex('expires_at', 'expires_at', { unique: false });
       }
     };
   });
