@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBalances } from '@/hooks/useBalances';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
 import { BalanceDetail } from './BalanceDetail';
 import { SettlementForm } from './SettlementForm';
+import { getAllTags } from '@/lib/db/stores';
+import { calculateBalancesForTag } from '@/lib/balances/calculator';
 import type { CurrencyCode } from '@/lib/currency/types';
-import type { BalanceEntry } from '@/lib/balances/types';
+import type { BalanceEntry, BalanceResult } from '@/lib/balances/types';
 
 const CURRENCIES: CurrencyCode[] = ['AUD', 'USD', 'EUR', 'GBP'];
 
@@ -25,20 +27,51 @@ const CURRENCIES: CurrencyCode[] = ['AUD', 'USD', 'EUR', 'GBP'];
 export function BalanceView() {
   const { user } = useAuth();
   const {
-    balances,
-    loading,
+    balances: globalBalances,
+    loading: globalLoading,
     simplified,
     setSimplified,
     targetCurrency,
     setTargetCurrency,
   } = useBalances();
 
+  // Tag filter state
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [tagBalances, setTagBalances] = useState<BalanceResult | null>(null);
+  const [loadingTagBalances, setLoadingTagBalances] = useState(false);
+
   // State for selected balance (to show detail modal)
   const [selectedBalance, setSelectedBalance] = useState<BalanceEntry | null>(null);
 
   // State for settlement form modal
   const [settlementBalance, setSettlementBalance] = useState<BalanceEntry | null>(null);
-  const [settlementType, setSettlementType] = useState<'partial' | 'global'>('partial');
+  const [settlementType, setSettlementType] = useState<'partial' | 'global' | 'tag_specific'>('partial');
+  const [settlementTag, setSettlementTag] = useState<string | null>(null);
+
+  // Load available tags
+  useEffect(() => {
+    getAllTags().then(setAvailableTags);
+  }, []);
+
+  // Calculate balances for selected tag
+  useEffect(() => {
+    if (selectedTag) {
+      setLoadingTagBalances(true);
+      calculateBalancesForTag(selectedTag, {
+        simplified,
+        targetCurrency,
+      })
+        .then(setTagBalances)
+        .catch((error) => {
+          console.error('Failed to calculate tag balances:', error);
+          setTagBalances(null);
+        })
+        .finally(() => setLoadingTagBalances(false));
+    } else {
+      setTagBalances(null);
+    }
+  }, [selectedTag, simplified, targetCurrency]);
 
   // Determine if a balance entry involves the current user
   const getBalanceType = (balance: BalanceEntry): 'owed-to-me' | 'i-owe' | 'others' => {
@@ -58,6 +91,10 @@ export function BalanceView() {
     return 'others';
   };
 
+  // Use tag balances if tag filter is active, otherwise use global balances
+  const balances = selectedTag ? tagBalances : globalBalances;
+  const loading = selectedTag ? loadingTagBalances : globalLoading;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -70,13 +107,64 @@ export function BalanceView() {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="text-4xl mb-3">✓</div>
-        <p className="text-ios-gray">No outstanding balances</p>
+        <p className="text-ios-gray">
+          {selectedTag
+            ? `No outstanding balances for #${selectedTag}`
+            : 'No outstanding balances'}
+        </p>
+        {selectedTag && (
+          <button
+            onClick={() => setSelectedTag(null)}
+            className="mt-3 text-sm text-ios-blue hover:underline"
+          >
+            Clear filter
+          </button>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {/* Tag filter */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Filter by Tag
+        </label>
+        <select
+          value={selectedTag || ''}
+          onChange={(e) => setSelectedTag(e.target.value || null)}
+          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-ios-blue"
+        >
+          <option value="">All Tags</option>
+          {availableTags.map((tag) => (
+            <option key={tag} value={tag}>
+              #{tag}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Active filter badge */}
+      {selectedTag && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -5 }}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+        >
+          <span className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+            Filtered by #{selectedTag}
+          </span>
+          <button
+            onClick={() => setSelectedTag(null)}
+            className="ml-auto px-2 py-1 text-xs text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors"
+          >
+            Clear filter
+          </button>
+        </motion.div>
+      )}
+
       {/* Controls */}
       <div className="flex justify-between items-center mb-4">
         {/* Left: Simplified toggle */}
@@ -162,31 +250,50 @@ export function BalanceView() {
 
                   {/* Settlement buttons */}
                   <div className="flex gap-1.5">
-                    {/* Settle All button (primary) */}
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSettlementType('global');
-                        setSettlementBalance(balance);
-                      }}
-                      className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full hover:bg-green-600 active:bg-green-700 transition-colors whitespace-nowrap"
-                    >
-                      Settle All
-                    </motion.button>
+                    {selectedTag ? (
+                      /* Tag filter active: Show "Settle Tag" button */
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSettlementType('tag_specific');
+                          setSettlementTag(selectedTag);
+                          setSettlementBalance(balance);
+                        }}
+                        className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full hover:bg-green-600 active:bg-green-700 transition-colors whitespace-nowrap"
+                      >
+                        Settle Tag
+                      </motion.button>
+                    ) : (
+                      /* No filter: Show Settle All and Settle buttons */
+                      <>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSettlementType('global');
+                            setSettlementTag(null);
+                            setSettlementBalance(balance);
+                          }}
+                          className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full hover:bg-green-600 active:bg-green-700 transition-colors whitespace-nowrap"
+                        >
+                          Settle All
+                        </motion.button>
 
-                    {/* Partial Settle button (secondary) */}
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSettlementType('partial');
-                        setSettlementBalance(balance);
-                      }}
-                      className="px-3 py-1 bg-gray-400 dark:bg-gray-600 text-white text-xs font-semibold rounded-full hover:bg-gray-500 dark:hover:bg-gray-500 active:bg-gray-600 transition-colors"
-                    >
-                      Settle
-                    </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSettlementType('partial');
+                            setSettlementTag(null);
+                            setSettlementBalance(balance);
+                          }}
+                          className="px-3 py-1 bg-gray-400 dark:bg-gray-600 text-white text-xs font-semibold rounded-full hover:bg-gray-500 dark:hover:bg-gray-500 active:bg-gray-600 transition-colors"
+                        >
+                          Settle
+                        </motion.button>
+                      </>
+                    )}
                   </div>
 
                   {hasExpenseDetails && (
@@ -256,14 +363,17 @@ export function BalanceView() {
                 <SettlementForm
                   initialBalance={settlementBalance}
                   initialSettlementType={settlementType}
+                  initialTag={settlementTag}
                   onSuccess={() => {
                     setSettlementBalance(null);
                     setSettlementType('partial'); // Reset to default
+                    setSettlementTag(null);
                     // Optionally refresh balances here
                   }}
                   onCancel={() => {
                     setSettlementBalance(null);
                     setSettlementType('partial'); // Reset to default
+                    setSettlementTag(null);
                   }}
                 />
               </div>

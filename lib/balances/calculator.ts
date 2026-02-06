@@ -11,7 +11,7 @@
  * - Multi-currency support (separate balances per currency)
  */
 
-import { getExpenses, getExpenseSplits, getExpenseTags } from '@/lib/db/stores';
+import { getExpenses, getExpenseSplits, getExpenseTags, getAllTags } from '@/lib/db/stores';
 import type { PersonIdentifier, BalanceEntry, BalanceResult } from './types';
 import { simplifyDebts } from './simplification';
 import { convertBalances } from '@/lib/currency/exchangeRates';
@@ -562,4 +562,177 @@ export async function getTagsWithBalances(
   tagsWithBalances.sort((a, b) => b.balance - a.balance);
 
   return tagsWithBalances;
+}
+
+/**
+ * Calculate balances for a specific tag context
+ *
+ * Similar to calculateBalances but only considers expenses with the specified tag.
+ * Returns balances showing who owes whom for expenses tagged with this tag.
+ *
+ * @param tag - Tag to filter expenses by
+ * @param options.simplified - If true, return simplified balances
+ * @param options.targetCurrency - If specified, convert all balances to this currency
+ * @returns BalanceResult with balances for the specified tag
+ */
+export async function calculateBalancesForTag(
+  tag: string,
+  options?: {
+    simplified?: boolean;
+    targetCurrency?: CurrencyCode;
+  }
+): Promise<BalanceResult> {
+  const normalizedTag = tag.toLowerCase();
+
+  // Fetch all non-deleted expenses
+  const expenses = await getExpenses();
+
+  // Filter expenses to only those with the specified tag
+  const taggedExpenses = [];
+  for (const expense of expenses) {
+    if (expense.is_deleted) continue;
+
+    const tags = await getExpenseTags(expense.id);
+    if (tags.includes(normalizedTag)) {
+      taggedExpenses.push(expense);
+    }
+  }
+
+  // Track balances per currency (same algorithm as calculateBalances)
+  const balancesByCurrency = new Map<
+    string,
+    Map<string, {
+      from: PersonIdentifier;
+      to: PersonIdentifier;
+      amount: number;
+      expenses: Array<{
+        id: string;
+        description: string;
+        amount: number;
+        date: string;
+        split_amount: number;
+      }>;
+    }>
+  >();
+
+  // Track total expenses per currency
+  const totalsByCurrency = new Map<string, number>();
+
+  // Process each tagged expense
+  for (const expense of taggedExpenses) {
+    const currency = expense.currency;
+    const payerId = expense.paid_by_user_id;
+
+    if (!payerId) continue;
+
+    // Initialize currency tracking
+    if (!balancesByCurrency.has(currency)) {
+      balancesByCurrency.set(currency, new Map());
+    }
+    if (!totalsByCurrency.has(currency)) {
+      totalsByCurrency.set(currency, 0);
+    }
+
+    // Add to total expenses
+    totalsByCurrency.set(currency, totalsByCurrency.get(currency)! + expense.amount);
+
+    // Get splits for this expense
+    const splits = await getExpenseSplits(expense.id);
+
+    // Process each split
+    for (const split of splits) {
+      const splitPersonId = split.user_id || split.participant_id;
+
+      if (!splitPersonId) continue;
+      if (splitPersonId === payerId) continue;
+
+      // Create person identifiers
+      const from: PersonIdentifier = {
+        user_id: split.user_id,
+        participant_id: split.participant_id,
+        name: getParticipantDisplayName(split),
+      };
+
+      const to: PersonIdentifier = {
+        user_id: payerId,
+        participant_id: null,
+        name: getParticipantDisplayName({ user_id: payerId }),
+      };
+
+      // Create person pair key for aggregation
+      const pairKey = `${splitPersonId}|${payerId}`;
+
+      // Get or create balance entry
+      const currencyBalances = balancesByCurrency.get(currency)!;
+      const existing = currencyBalances.get(pairKey);
+
+      // Create expense detail for tracking
+      const expenseDetail = {
+        id: expense.id,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.expense_date,
+        split_amount: split.amount,
+      };
+
+      if (existing) {
+        // Add to existing debt
+        existing.amount += split.amount;
+        existing.expenses.push(expenseDetail);
+      } else {
+        // Create new debt entry
+        currencyBalances.set(pairKey, {
+          from,
+          to,
+          amount: split.amount,
+          expenses: [expenseDetail],
+        });
+      }
+    }
+  }
+
+  // Determine primary currency (most used currency in tagged expenses)
+  let primaryCurrency = 'AUD'; // Default
+  let maxExpenses = 0;
+  for (const [currency, total] of totalsByCurrency.entries()) {
+    if (total > maxExpenses) {
+      maxExpenses = total;
+      primaryCurrency = currency;
+    }
+  }
+
+  // Convert to balance entries (for primary currency)
+  const directBalances: BalanceEntry[] = [];
+  const primaryBalances = balancesByCurrency.get(primaryCurrency);
+
+  if (primaryBalances) {
+    for (const entry of primaryBalances.values()) {
+      directBalances.push({
+        from: entry.from,
+        to: entry.to,
+        amount: entry.amount,
+        currency: primaryCurrency,
+        // Only include expenses in direct view (simplified=false)
+        expenses: !options?.simplified ? entry.expenses : undefined,
+      });
+    }
+  }
+
+  // Apply simplification if requested
+  let balances = options?.simplified
+    ? simplifyDebts(directBalances)
+    : directBalances;
+
+  // Convert to target currency if specified
+  let currency = primaryCurrency;
+  if (options?.targetCurrency) {
+    balances = await convertBalances(balances, options.targetCurrency);
+    currency = options.targetCurrency;
+  }
+
+  return {
+    balances,
+    total_expenses: totalsByCurrency.get(primaryCurrency) || 0,
+    currency,
+  };
 }
