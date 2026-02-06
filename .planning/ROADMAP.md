@@ -16,7 +16,7 @@ None
 - [x] **Phase 4: Core Expense Creation** - Add expenses, participants, splitting methods (Completed: 2026-02-06)
 - [x] **Phase 5: Tagging & Organization** - Tag system, filtering, smart suggestions (Complete)
 - [x] **Phase 6: Balance Calculation Engine** - Global balances, debt simplification, multi-currency (Complete)
-- [ ] **Phase 7: Settlement & Payments** - Record settlements (global, tag-specific, partial)
+- [x] **Phase 7: Settlement & Payments** - Record settlements (global, tag-specific, partial) (Completed: 2026-02-06)
 - [ ] **Phase 8: Templates & Efficiency Features** - Predefined split templates, quick-apply
 - [ ] **Phase 9: Version History & Undo** - Expense edit tracking, undo capability, activity feed
 - [ ] **Phase 10: iOS-Native UX Layer** - Bottom tabs, sheet modals, gestures, transitions, dark mode
@@ -136,12 +136,22 @@ Plans:
 **Research**: Unlikely (internal feature extending balance calculations)
 **Plans**: 4-5 plans
 
+**Status**: Complete (2026-02-06)
+**Plans**: 5 plans (all complete)
+
 Plans:
-- [ ] 07-01: Create settlement form (select person, amount, settlement type)
-- [ ] 07-02: Implement global settlement (zero out all balances with person)
-- [ ] 07-03: Implement tag-specific settlement (settle just one context)
-- [ ] 07-04: Implement partial amount settlement (flexible payment recording)
-- [ ] 07-05: Add settlement history view and edit/delete capability
+- [x] 07-01: Create settlement form (select person, amount, settlement type)
+- [x] 07-02: Implement global settlement (zero out all balances with person)
+- [x] 07-03: Implement tag-specific settlement (settle just one context)
+- [x] 07-04: Add settlement history view and edit/delete capability
+- [x] 07-05: Integrate settlements into balance calculation
+
+**Execution**: Parallel (3 waves, max 3 concurrent agents)
+**Wall clock time**: ~17 minutes
+**Wave structure**:
+- Wave 1: 07-01, 07-04 (independent, 2 parallel)
+- Wave 2: 07-02, 07-03 (depends on 07-01, 2 parallel)
+- Wave 3: 07-05 (depends on 07-01, 07-02, 07-03, 1 sequential)
 
 ### Phase 8: Templates & Efficiency Features
 **Goal**: Build predefined split templates with participants and weights for quick expense entry
