@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ParticipantPicker } from './ParticipantPicker';
 import { SplitEqual } from './SplitEqual';
 import { SplitByPercentage } from './SplitByPercentage';
 import { SplitByShares } from './SplitByShares';
 import { TagInput } from './TagInput';
 import { detectCurrencyFromLocation } from '@/lib/currency/geolocation';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { useTemplates } from '@/hooks/useTemplates';
+import { getTemplateById } from '@/lib/db/stores';
 import type { ExpenseSplit } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 
@@ -54,6 +57,13 @@ export function ExpenseForm({
   onSubmit: (expense: ExpenseFormData) => void;
   onCancel?: () => void;
 }) {
+  // Auth context
+  const { user } = useAuth();
+
+  // Template management
+  const { templates } = useTemplates(user?.id || null);
+  const [showTemplates, setShowTemplates] = useState(false);
+
   // Form state
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
   const [currency, setCurrency] = useState(initialData?.currency || 'AUD');
@@ -228,6 +238,67 @@ export function ExpenseForm({
   const handleCurrencyChange = (newCurrency: string) => {
     setCurrency(newCurrency);
     setCurrencyAutoDetected(false);  // User manually changed, so no longer auto-detected
+  };
+
+  // Apply template to populate participants and splits
+  const applyTemplate = async (templateId: string) => {
+    const result = await getTemplateById(templateId);
+    if (!result) return;
+
+    const { template, participants: templateParticipants } = result;
+
+    // Load full participant details for each template participant
+    const participantDetails: Array<ParticipantWithDetails & { split_value: number | null }> = [];
+
+    for (const tp of templateParticipants) {
+      if (tp.user_id) {
+        // TODO: Load user details with getUserById when available
+        // For now, use placeholder - Phase 2 has user profiles but no query by ID in stores.ts
+        participantDetails.push({
+          user_id: tp.user_id,
+          participant_id: null,
+          name: 'User', // TODO: Load from database
+          email: null,
+          split_value: tp.split_value
+        });
+      } else if (tp.participant_id) {
+        // TODO: Load participant with getParticipantById when available
+        // For now, use placeholder
+        participantDetails.push({
+          user_id: null,
+          participant_id: tp.participant_id,
+          name: 'Participant', // TODO: Load from database
+          email: null,
+          split_value: tp.split_value
+        });
+      }
+    }
+
+    // Set participants (strip split_value for form state)
+    setParticipants(participantDetails.map(({ split_value, ...p }) => p));
+
+    // Set split method
+    setSplitMethod(template.split_type);
+
+    // Set splits based on template configuration
+    const newSplits: ExpenseSplit[] = participantDetails.map(p => ({
+      id: crypto.randomUUID(),
+      expense_id: '', // Will be set on save
+      user_id: p.user_id,
+      participant_id: p.participant_id,
+      amount: 0, // Will be calculated based on expense amount
+      split_type: template.split_type,
+      split_value: p.split_value,
+      created_at: new Date().toISOString()
+    }));
+
+    setSplits(newSplits);
+
+    // Collapse template selector
+    setShowTemplates(false);
+
+    // Auto-advance to splits step
+    setStep('splits');
   };
 
   return (
