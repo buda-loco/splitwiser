@@ -17,7 +17,7 @@ None
 - [x] **Phase 5: Tagging & Organization** - Tag system, filtering, smart suggestions (Complete)
 - [x] **Phase 6: Balance Calculation Engine** - Global balances, debt simplification, multi-currency (Complete)
 - [x] **Phase 7: Settlement & Payments** - Record settlements (global, tag-specific, partial) (Completed: 2026-02-06)
-- [ ] **Phase 8: Templates & Efficiency Features** - Predefined split templates, quick-apply
+- [x] **Phase 8: Templates & Efficiency Features** - Predefined split templates, quick-apply (Completed: 2026-02-06)
 - [ ] **Phase 9: Version History & Undo** - Expense edit tracking, undo capability, activity feed
 - [ ] **Phase 10: iOS-Native UX Layer** - Bottom tabs, sheet modals, gestures, transitions, dark mode
 - [ ] **Phase 11: Analytics, Export & Categories** - Spending charts, CSV export, category management
@@ -155,15 +155,23 @@ Plans:
 
 ### Phase 8: Templates & Efficiency Features
 **Goal**: Build predefined split templates with participants and weights for quick expense entry
+**Status**: Complete (2026-02-06)
 **Depends on**: Phase 4, Phase 5
 **Research**: Unlikely (internal feature combining existing patterns)
-**Plans**: 3-4 plans
+**Plans**: 4 plans (all complete)
 
 Plans:
-- [ ] 08-01: Create template schema and CRUD operations
-- [ ] 08-02: Build template creation form (name, participants, split config)
-- [ ] 08-03: Implement quick-apply template to new expense
-- [ ] 08-04: Add template management screen (edit, delete, duplicate)
+- [x] 08-01: Create template schema and CRUD operations
+- [x] 08-02: Build template creation form (name, participants, split config)
+- [x] 08-03: Implement quick-apply template to new expense
+- [x] 08-04: Add template management screen (edit, delete, duplicate)
+
+**Execution**: Parallel (3 waves, max 3 concurrent agents)
+**Wall clock time**: ~12 minutes
+**Wave structure**:
+- Wave 1: 08-01 (foundation, 1 sequential)
+- Wave 2: 08-02, 08-03 (depends on 08-01, 2 parallel)
+- Wave 3: 08-04 (depends on 08-01, 08-02, 1 sequential)
 
 ### Phase 9: Version History & Undo
 **Goal**: Track all expense modifications with full version history and implement undo capability
