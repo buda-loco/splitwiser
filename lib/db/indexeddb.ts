@@ -8,7 +8,7 @@
 
 // Database configuration
 const DB_NAME = 'splitwiser-offline';
-const DB_VERSION = 2; // Incremented for exchange_rates store
+const DB_VERSION = 3; // Incremented for split_templates and template_participants stores
 
 // Store names matching our schema
 export const STORES = {
@@ -20,6 +20,8 @@ export const STORES = {
   EXPENSE_VERSIONS: 'expense_versions',
   SYNC_QUEUE: 'sync_queue', // For pending operations
   EXCHANGE_RATES: 'exchange_rates', // For cached exchange rates
+  SPLIT_TEMPLATES: 'split_templates', // For reusable split configurations
+  TEMPLATE_PARTICIPANTS: 'template_participants', // For template participant mappings
 } as const;
 
 /**
@@ -97,6 +99,19 @@ export function initDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORES.EXCHANGE_RATES)) {
         const ratesStore = db.createObjectStore(STORES.EXCHANGE_RATES, { keyPath: 'base_currency' });
         ratesStore.createIndex('expires_at', 'expires_at', { unique: false });
+      }
+
+      // Create split_templates store for reusable split configurations
+      if (!db.objectStoreNames.contains(STORES.SPLIT_TEMPLATES)) {
+        const templatesStore = db.createObjectStore(STORES.SPLIT_TEMPLATES, { keyPath: 'id' });
+        templatesStore.createIndex('created_by_user_id', 'created_by_user_id', { unique: false });
+        templatesStore.createIndex('sync_status', 'sync_status', { unique: false });
+      }
+
+      // Create template_participants store for template participant mappings
+      if (!db.objectStoreNames.contains(STORES.TEMPLATE_PARTICIPANTS)) {
+        const templateParticipantsStore = db.createObjectStore(STORES.TEMPLATE_PARTICIPANTS, { keyPath: 'id' });
+        templateParticipantsStore.createIndex('template_id', 'template_id', { unique: false });
       }
     };
   });

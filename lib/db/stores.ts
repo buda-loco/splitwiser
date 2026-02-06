@@ -15,6 +15,10 @@ import type {
   ExpenseTag,
   Settlement,
   SyncQueueItem,
+  OfflineSplitTemplate,
+  TemplateParticipant,
+  TemplateCreateInput,
+  SplitTemplate,
 } from './types';
 
 // =====================================================
@@ -426,15 +430,27 @@ export async function deleteTag(tag: string): Promise<void> {
  * Get tag usage statistics
  */
 export async function getTagStats(): Promise<Map<string, number>> {
-  const tags = await getAllTags();
-  const stats = new Map<string, number>();
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.EXPENSE_TAGS], 'readonly');
+  const store = transaction.objectStore(STORES.EXPENSE_TAGS);
 
-  for (const tag of tags) {
-    const expenses = await getExpenses({ tag });
-    stats.set(tag, expenses.length);
+  // Single scan: get all tag records and count per tag
+  const allTagRecords: { tag: string; expense_id: string }[] = await promisifyRequest(store.getAll());
+  const stats = new Map<string, Set<string>>();
+
+  for (const record of allTagRecords) {
+    if (!stats.has(record.tag)) {
+      stats.set(record.tag, new Set());
+    }
+    stats.get(record.tag)!.add(record.expense_id);
   }
 
-  return stats;
+  // Convert Sets to counts
+  const result = new Map<string, number>();
+  for (const [tag, expenseIds] of stats) {
+    result.set(tag, expenseIds.size);
+  }
+  return result;
 }
 
 // =====================================================
@@ -593,4 +609,127 @@ export async function markSyncItemFailed(id: string, error: string): Promise<voi
   };
 
   await promisifyRequest(store.put(updated));
+}
+
+// =====================================================
+// Split Template Operations
+// =====================================================
+
+/**
+ * Create template with participants (atomic transaction)
+ */
+export async function createTemplate(template: TemplateCreateInput): Promise<OfflineSplitTemplate> {
+  const db = await getDatabase();
+  const tx = db.transaction([STORES.SPLIT_TEMPLATES, STORES.TEMPLATE_PARTICIPANTS], 'readwrite');
+
+  const templateRecord: OfflineSplitTemplate = {
+    id: crypto.randomUUID(),
+    name: template.name,
+    split_type: template.split_type,
+    created_by_user_id: template.created_by_user_id,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    sync_status: 'pending',
+    local_updated_at: new Date().toISOString()
+  };
+
+  await promisifyRequest(tx.objectStore(STORES.SPLIT_TEMPLATES).add(templateRecord));
+
+  for (const p of template.participants) {
+    const participantRecord: TemplateParticipant = {
+      id: crypto.randomUUID(),
+      template_id: templateRecord.id,
+      user_id: p.user_id || null,
+      participant_id: p.participant_id || null,
+      split_value: p.split_value || null,
+      created_at: new Date().toISOString()
+    };
+    await promisifyRequest(tx.objectStore(STORES.TEMPLATE_PARTICIPANTS).add(participantRecord));
+  }
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(new Error('Transaction aborted'));
+  });
+
+  return templateRecord;
+}
+
+/**
+ * Get all templates for user
+ */
+export async function getTemplatesByUser(userId: string): Promise<OfflineSplitTemplate[]> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.SPLIT_TEMPLATES], 'readonly');
+  const store = transaction.objectStore(STORES.SPLIT_TEMPLATES);
+  const index = store.index('created_by_user_id');
+  return promisifyRequest(index.getAll(userId));
+}
+
+/**
+ * Get template by ID with participants
+ */
+export async function getTemplateById(templateId: string): Promise<{ template: OfflineSplitTemplate; participants: TemplateParticipant[] } | null> {
+  const db = await getDatabase();
+
+  // Get template
+  const templateTx = db.transaction([STORES.SPLIT_TEMPLATES], 'readonly');
+  const template = await promisifyRequest(templateTx.objectStore(STORES.SPLIT_TEMPLATES).get(templateId));
+  if (!template) return null;
+
+  // Get participants
+  const participantsTx = db.transaction([STORES.TEMPLATE_PARTICIPANTS], 'readonly');
+  const participantsIndex = participantsTx.objectStore(STORES.TEMPLATE_PARTICIPANTS).index('template_id');
+  const participants = await promisifyRequest(participantsIndex.getAll(templateId));
+
+  return { template, participants };
+}
+
+/**
+ * Update template (name or split_type only)
+ */
+export async function updateTemplate(templateId: string, updates: { name?: string; split_type?: SplitTemplate['split_type'] }): Promise<void> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.SPLIT_TEMPLATES], 'readwrite');
+  const store = transaction.objectStore(STORES.SPLIT_TEMPLATES);
+
+  const template = await promisifyRequest(store.get(templateId));
+  if (!template) throw new Error('Template not found');
+
+  const updated: OfflineSplitTemplate = {
+    ...template,
+    ...updates,
+    updated_at: new Date().toISOString(),
+    sync_status: 'pending' as const,
+    local_updated_at: new Date().toISOString()
+  };
+
+  await promisifyRequest(store.put(updated));
+}
+
+/**
+ * Delete template (cascades to participants via transaction)
+ */
+export async function deleteTemplate(templateId: string): Promise<void> {
+  const db = await getDatabase();
+  const tx = db.transaction([STORES.SPLIT_TEMPLATES, STORES.TEMPLATE_PARTICIPANTS], 'readwrite');
+
+  // Delete all participants first
+  const participantsIndex = tx.objectStore(STORES.TEMPLATE_PARTICIPANTS).index('template_id');
+  const participants = await promisifyRequest(participantsIndex.getAll(templateId));
+  for (const p of participants) {
+    await promisifyRequest(tx.objectStore(STORES.TEMPLATE_PARTICIPANTS).delete(p.id));
+  }
+
+  // Delete template
+  await promisifyRequest(tx.objectStore(STORES.SPLIT_TEMPLATES).delete(templateId));
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(new Error('Transaction aborted'));
+  });
 }
