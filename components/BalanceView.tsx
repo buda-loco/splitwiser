@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useBalances } from '@/hooks/useBalances';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
 import { BalanceDetail } from './BalanceDetail';
+import { SettlementForm } from './SettlementForm';
 import type { CurrencyCode } from '@/lib/currency/types';
 import type { BalanceEntry } from '@/lib/balances/types';
 
@@ -33,6 +35,9 @@ export function BalanceView() {
 
   // State for selected balance (to show detail modal)
   const [selectedBalance, setSelectedBalance] = useState<BalanceEntry | null>(null);
+
+  // State for settlement form modal
+  const [settlementBalance, setSettlementBalance] = useState<BalanceEntry | null>(null);
 
   // Determine if a balance entry involves the current user
   const getBalanceType = (balance: BalanceEntry): 'owed-to-me' | 'i-owe' | 'others' => {
@@ -122,15 +127,17 @@ export function BalanceView() {
           return (
             <div
               key={`${balance.from.user_id || balance.from.participant_id}-${balance.to.user_id || balance.to.participant_id}-${index}`}
-              onClick={() => setSelectedBalance(balance)}
-              className={`px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
-                hasExpenseDetails
-                  ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 active:bg-gray-100 dark:active:bg-gray-800 transition-colors'
-                  : ''
-              }`}
+              className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1">
+                <div
+                  className={`flex-1 ${
+                    hasExpenseDetails
+                      ? 'cursor-pointer hover:opacity-70 active:opacity-50 transition-opacity'
+                      : ''
+                  }`}
+                  onClick={() => hasExpenseDetails && setSelectedBalance(balance)}
+                >
                   <p className="text-sm text-gray-700 dark:text-gray-300">
                     <span className="font-medium">{fromName}</span>
                     {' owes '}
@@ -151,6 +158,19 @@ export function BalanceView() {
                   <p className={`font-semibold ${amountColorClass}`}>
                     {balance.currency} {balance.amount.toFixed(2)}
                   </p>
+
+                  {/* Settle button */}
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSettlementBalance(balance);
+                    }}
+                    className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full hover:bg-green-600 active:bg-green-700 transition-colors"
+                  >
+                    Settle
+                  </motion.button>
+
                   {hasExpenseDetails && (
                     <svg
                       className="w-5 h-5 text-gray-400"
@@ -188,6 +208,46 @@ export function BalanceView() {
           onClose={() => setSelectedBalance(null)}
         />
       )}
+
+      {/* Settlement form modal */}
+      <AnimatePresence>
+        {settlementBalance && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSettlementBalance(null)}
+              className="absolute inset-0 bg-black/50"
+            />
+
+            {/* Modal content */}
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto"
+            >
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                  Record Settlement
+                </h2>
+
+                <SettlementForm
+                  initialBalance={settlementBalance}
+                  onSuccess={() => {
+                    setSettlementBalance(null);
+                    // Optionally refresh balances here
+                  }}
+                  onCancel={() => setSettlementBalance(null)}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
