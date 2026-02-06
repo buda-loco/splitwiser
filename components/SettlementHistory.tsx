@@ -93,6 +93,9 @@ export function SettlementHistory() {
     try {
       const success = await deleteSettlement(id);
       if (success) {
+        // Dispatch settlement-deleted event for balance re-calculation
+        window.dispatchEvent(new CustomEvent('settlement-deleted'));
+
         setExpandedId(null);
         setShowDeleteConfirm(null);
         await refetch();

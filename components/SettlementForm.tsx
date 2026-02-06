@@ -329,6 +329,9 @@ export function SettlementForm({
         }
       }
 
+      // Dispatch settlement-created event for balance re-calculation
+      window.dispatchEvent(new CustomEvent('settlement-created'));
+
       // Reset form on success
       setFromPerson(null);
       setToPerson(null);
