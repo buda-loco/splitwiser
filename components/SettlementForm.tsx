@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ParticipantPicker } from './ParticipantPicker';
+import { submitSettlement } from '@/lib/actions/settlement';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 import type { BalanceEntry } from '@/lib/balances/types';
 
@@ -131,6 +133,9 @@ export function SettlementForm({
     }
   };
 
+  // Get current user for created_by_user_id
+  const { user } = useAuth();
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,10 +153,17 @@ export function SettlementForm({
       return;
     }
 
+    // Check user authentication
+    if (!user) {
+      setErrorMessage('You must be logged in to record a settlement');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
+      // Call onSubmit callback if provided (for custom handling)
       if (onSubmit) {
         await onSubmit({
           from: fromPerson,
@@ -160,6 +172,23 @@ export function SettlementForm({
           currency,
           settlement_date: settlementDate
         });
+      } else {
+        // Default: call server action to submit settlement
+        const result = await submitSettlement({
+          from_user_id: fromPerson.user_id,
+          from_participant_id: fromPerson.participant_id,
+          to_user_id: toPerson.user_id,
+          to_participant_id: toPerson.participant_id,
+          amount: parseFloat(amount),
+          currency,
+          settlement_date: settlementDate,
+          settlement_type: 'partial', // Default to partial (other types in plans 02-03)
+          created_by_user_id: user.id
+        });
+
+        if (!result.success) {
+          throw new Error(result.error);
+        }
       }
 
       // Reset form on success
