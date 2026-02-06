@@ -38,6 +38,7 @@ export function BalanceView() {
 
   // State for settlement form modal
   const [settlementBalance, setSettlementBalance] = useState<BalanceEntry | null>(null);
+  const [settlementType, setSettlementType] = useState<'partial' | 'global'>('partial');
 
   // Determine if a balance entry involves the current user
   const getBalanceType = (balance: BalanceEntry): 'owed-to-me' | 'i-owe' | 'others' => {
@@ -159,17 +160,34 @@ export function BalanceView() {
                     {balance.currency} {balance.amount.toFixed(2)}
                   </p>
 
-                  {/* Settle button */}
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSettlementBalance(balance);
-                    }}
-                    className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full hover:bg-green-600 active:bg-green-700 transition-colors"
-                  >
-                    Settle
-                  </motion.button>
+                  {/* Settlement buttons */}
+                  <div className="flex gap-1.5">
+                    {/* Settle All button (primary) */}
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSettlementType('global');
+                        setSettlementBalance(balance);
+                      }}
+                      className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full hover:bg-green-600 active:bg-green-700 transition-colors whitespace-nowrap"
+                    >
+                      Settle All
+                    </motion.button>
+
+                    {/* Partial Settle button (secondary) */}
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSettlementType('partial');
+                        setSettlementBalance(balance);
+                      }}
+                      className="px-3 py-1 bg-gray-400 dark:bg-gray-600 text-white text-xs font-semibold rounded-full hover:bg-gray-500 dark:hover:bg-gray-500 active:bg-gray-600 transition-colors"
+                    >
+                      Settle
+                    </motion.button>
+                  </div>
 
                   {hasExpenseDetails && (
                     <svg
@@ -237,11 +255,16 @@ export function BalanceView() {
 
                 <SettlementForm
                   initialBalance={settlementBalance}
+                  initialSettlementType={settlementType}
                   onSuccess={() => {
                     setSettlementBalance(null);
+                    setSettlementType('partial'); // Reset to default
                     // Optionally refresh balances here
                   }}
-                  onCancel={() => setSettlementBalance(null)}
+                  onCancel={() => {
+                    setSettlementBalance(null);
+                    setSettlementType('partial'); // Reset to default
+                  }}
                 />
               </div>
             </motion.div>
