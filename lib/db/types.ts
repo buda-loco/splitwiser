@@ -111,6 +111,15 @@ export type OfflineExpense = Expense & {
 };
 
 /**
+ * Input type for creating an expense - only user-facing fields required.
+ * System fields (is_deleted, version, sync_status, etc.) are set by the store layer.
+ */
+export type ExpenseCreateInput = Pick<Expense, 'amount' | 'currency' | 'description' | 'category' | 'expense_date' | 'created_by_user_id'> & {
+  paid_by_user_id?: string | null;
+  manual_exchange_rate?: OfflineExpense['manual_exchange_rate'];
+};
+
+/**
  * Expense participant record linking expenses to users or non-registered participants
  */
 export type ExpenseParticipant = {
@@ -188,4 +197,50 @@ export type SyncQueueItem = {
   status: 'pending' | 'synced' | 'failed';
   created_at: string;
   error_message?: string;
+};
+
+/**
+ * Split template record for storing reusable split configurations
+ */
+export type SplitTemplate = {
+  id: string;
+  name: string;
+  split_type: 'equal' | 'percentage' | 'shares' | 'exact';
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * Offline-specific template type with sync tracking
+ */
+export type OfflineSplitTemplate = SplitTemplate & {
+  sync_status: 'pending' | 'synced' | 'conflict';
+  local_updated_at: string;
+};
+
+/**
+ * Template participant record linking templates to users/participants with split values
+ */
+export type TemplateParticipant = {
+  id: string;
+  template_id: string;
+  user_id: string | null;
+  participant_id: string | null;
+  split_value: number | null; // null for equal split, number for percentage/shares/exact
+  created_at: string;
+};
+
+/**
+ * Input type for creating a template
+ */
+export type TemplateCreateInput = {
+  name: string;
+  split_type: SplitTemplate['split_type'];
+  created_by_user_id: string;
+  participants: Array<{
+    user_id?: string | null;
+    participant_id?: string | null;
+    split_value?: number | null;
+  }>;
 };
