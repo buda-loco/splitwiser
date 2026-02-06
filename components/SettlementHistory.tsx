@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettlements } from '@/hooks/useSettlements';
 import type { Settlement } from '@/lib/db/types';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
+import { deleteSettlement } from '@/lib/db/stores';
 
 type GroupedSettlements = {
   [key: string]: Settlement[];
@@ -57,6 +58,20 @@ function getSettlementTypeBadge(type: Settlement['settlement_type']) {
 }
 
 /**
+ * Get full text for settlement type
+ */
+function getSettlementTypeText(settlement: Settlement): string {
+  switch (settlement.settlement_type) {
+    case 'global':
+      return 'Global settlement';
+    case 'tag_specific':
+      return `Tag-specific settlement for #${settlement.tag}`;
+    case 'partial':
+      return 'Partial payment';
+  }
+}
+
+/**
  * Format full date for detail view
  */
 function formatFullDate(date: string): string {
@@ -68,8 +83,29 @@ function formatFullDate(date: string): string {
 }
 
 export function SettlementHistory() {
-  const { settlements, loading } = useSettlements();
+  const { settlements, loading, refetch } = useSettlements();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      const success = await deleteSettlement(id);
+      if (success) {
+        setExpandedId(null);
+        setShowDeleteConfirm(null);
+        await refetch();
+      } else {
+        alert('Failed to delete settlement');
+      }
+    } catch (error) {
+      console.error('Error deleting settlement:', error);
+      alert('Failed to delete settlement');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Group settlements by date
   const groupedSettlements: GroupedSettlements = settlements.reduce((acc, settlement) => {
@@ -206,7 +242,7 @@ export function SettlementHistory() {
                     </div>
                   </motion.div>
 
-                  {/* Expanded detail view - placeholder for Task 2 */}
+                  {/* Expanded detail view */}
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
@@ -216,11 +252,81 @@ export function SettlementHistory() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="px-4 pb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-                          {/* Detail content will be added in Task 2 */}
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Detail view will be implemented in Task 2
-                          </p>
+                        <div className="px-4 pb-4 border-t border-gray-200 dark:border-gray-700 pt-4 space-y-4">
+                          {/* Settlement type */}
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                              Type
+                            </div>
+                            <div className="text-sm text-gray-900 dark:text-gray-100">
+                              {getSettlementTypeText(settlement)}
+                            </div>
+                          </div>
+
+                          {/* From person */}
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                              From
+                            </div>
+                            <div className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+                              {fromName}
+                            </div>
+                          </div>
+
+                          {/* To person */}
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                              To
+                            </div>
+                            <div className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+                              {toName}
+                            </div>
+                          </div>
+
+                          {/* Amount */}
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                              Amount
+                            </div>
+                            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                              {settlement.currency} {settlement.amount.toFixed(2)}
+                            </div>
+                          </div>
+
+                          {/* Date */}
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                              Settlement Date
+                            </div>
+                            <div className="text-sm text-gray-900 dark:text-gray-100">
+                              {formatFullDate(settlement.settlement_date)}
+                            </div>
+                          </div>
+
+                          {/* Created timestamp */}
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Created {new Date(settlement.created_at).toLocaleString()}
+                            </div>
+                          </div>
+
+                          {/* Delete button */}
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.1 }}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDeleteConfirm(settlement.id);
+                              }}
+                              disabled={deleting}
+                              className="w-full py-3 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 active:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {deleting ? 'Deleting...' : 'Delete Settlement'}
+                            </button>
+                          </motion.div>
                         </div>
                       </motion.div>
                     )}
@@ -231,6 +337,74 @@ export function SettlementHistory() {
           </div>
         </div>
       ))}
+
+      {/* Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDeleteConfirm(null)}
+              className="fixed inset-0 bg-black/50 z-50"
+            />
+
+            {/* Alert Dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-sm w-full overflow-hidden">
+                {/* Title */}
+                <div className="px-6 pt-6 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Delete Settlement?
+                  </h3>
+                </div>
+
+                {/* Message */}
+                <div className="px-6 pb-6">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    This will remove this{' '}
+                    {settlements.find((s) => s.id === showDeleteConfirm)
+                      ? `${settlements.find((s) => s.id === showDeleteConfirm)!.currency} ${settlements
+                          .find((s) => s.id === showDeleteConfirm)!
+                          .amount.toFixed(2)}`
+                      : ''}{' '}
+                    settlement. This cannot be undone.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 divide-x divide-gray-200 dark:divide-gray-700">
+                  <button
+                    onClick={() => setShowDeleteConfirm(null)}
+                    disabled={deleting}
+                    className="py-3 text-center font-medium text-ios-blue hover:bg-gray-50 dark:hover:bg-gray-700 active:bg-gray-100 dark:active:bg-gray-600 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (showDeleteConfirm) {
+                        handleDelete(showDeleteConfirm);
+                      }
+                    }}
+                    disabled={deleting}
+                    className="py-3 text-center font-medium text-red-600 hover:bg-gray-50 dark:hover:bg-gray-700 active:bg-gray-100 dark:active:bg-gray-600 disabled:opacity-50"
+                  >
+                    {deleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

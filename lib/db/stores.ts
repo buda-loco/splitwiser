@@ -9,6 +9,7 @@
 import { getDatabase, promisifyRequest, STORES } from './indexeddb';
 import type {
   OfflineExpense,
+  ExpenseCreateInput,
   ExpenseParticipant,
   ExpenseSplit,
   ExpenseTag,
@@ -25,19 +26,29 @@ import type {
  * Generates UUID and tracks as pending sync
  */
 export async function createExpense(
-  expense: Omit<OfflineExpense, 'id' | 'created_at' | 'updated_at'>
+  expense: ExpenseCreateInput
 ): Promise<string> {
   const db = await getDatabase();
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
   const newExpense: OfflineExpense = {
-    ...expense,
     id,
+    amount: expense.amount,
+    currency: expense.currency,
+    description: expense.description,
+    category: expense.category,
+    expense_date: expense.expense_date,
+    paid_by_user_id: expense.paid_by_user_id ?? null,
+    created_by_user_id: expense.created_by_user_id,
+    is_deleted: false,
+    version: 1,
+    deleted_at: null,
     created_at: now,
     updated_at: now,
     sync_status: 'pending',
     local_updated_at: now,
+    manual_exchange_rate: expense.manual_exchange_rate ?? null,
   };
 
   const transaction = db.transaction([STORES.EXPENSES], 'readwrite');
@@ -480,6 +491,31 @@ export async function getSettlements(user_id?: string): Promise<Settlement[]> {
   });
 
   return Array.from(settlementMap.values());
+}
+
+/**
+ * Delete a settlement by ID
+ * Hard delete - settlements are immutable and can be re-created if needed
+ */
+export async function deleteSettlement(id: string): Promise<boolean> {
+  try {
+    const db = await getDatabase();
+    const transaction = db.transaction([STORES.SETTLEMENTS], 'readwrite');
+    const store = transaction.objectStore(STORES.SETTLEMENTS);
+
+    // Check if settlement exists
+    const existing = await promisifyRequest(store.get(id));
+    if (!existing) {
+      return false;
+    }
+
+    // Delete the settlement
+    await promisifyRequest(store.delete(id));
+    return true;
+  } catch (error) {
+    console.error('Failed to delete settlement:', error);
+    return false;
+  }
 }
 
 // =====================================================
