@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ParticipantPicker } from './ParticipantPicker';
 import { submitSettlement } from '@/lib/actions/settlement';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { calculateNetBalance, calculateTagBalance, getTagsWithBalances } from '@/lib/balances/calculator';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 import type { BalanceEntry } from '@/lib/balances/types';
 
@@ -21,6 +22,7 @@ export type SettlementFormData = {
 
 type SettlementFormProps = {
   initialBalance?: BalanceEntry;
+  initialSettlementType?: 'partial' | 'global';
   onSubmit?: (data: SettlementFormData) => void | Promise<void>;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -39,6 +41,7 @@ type SettlementFormProps = {
  */
 export function SettlementForm({
   initialBalance,
+  initialSettlementType = 'partial',
   onSubmit,
   onSuccess,
   onCancel
@@ -74,6 +77,13 @@ export function SettlementForm({
     new Date().toISOString().split('T')[0]
   );
 
+  // Settlement type: 'partial' or 'global'
+  const [settlementType, setSettlementType] = useState<'partial' | 'global'>(initialSettlementType);
+
+  // Net balance for global settlement
+  const [netBalance, setNetBalance] = useState<{ amount: number; currency: string; direction: string } | null>(null);
+  const [calculatingNet, setCalculatingNet] = useState(false);
+
   // Track touched fields for validation display
   const [touched, setTouched] = useState({
     from: false,
@@ -87,6 +97,46 @@ export function SettlementForm({
 
   // Error message
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Calculate net balance when settlement type is 'global' and both people are selected
+  useEffect(() => {
+    const calculateNet = async () => {
+      if (settlementType === 'global' && fromPerson && toPerson) {
+        setCalculatingNet(true);
+        try {
+          const result = await calculateNetBalance(
+            {
+              user_id: fromPerson.user_id,
+              participant_id: fromPerson.participant_id,
+              name: fromPerson.name,
+            },
+            {
+              user_id: toPerson.user_id,
+              participant_id: toPerson.participant_id,
+              name: toPerson.name,
+            }
+          );
+
+          setNetBalance(result);
+
+          // Auto-fill amount and currency from net balance
+          if (result.direction === 'settled') {
+            setAmount('0');
+          } else {
+            setAmount(result.amount.toFixed(2));
+          }
+          setCurrency(result.currency);
+        } catch (error) {
+          console.error('Failed to calculate net balance:', error);
+          setErrorMessage('Failed to calculate net balance');
+        } finally {
+          setCalculatingNet(false);
+        }
+      }
+    };
+
+    calculateNet();
+  }, [settlementType, fromPerson, toPerson]);
 
   // Validation errors
   const errors = {
@@ -182,7 +232,7 @@ export function SettlementForm({
           amount: parseFloat(amount),
           currency,
           settlement_date: settlementDate,
-          settlement_type: 'partial', // Default to partial (other types in plans 02-03)
+          settlement_type: settlementType,
           created_by_user_id: user.id
         });
 
@@ -218,6 +268,65 @@ export function SettlementForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Settlement Type Selector */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Settlement Type
+        </label>
+        <div className="flex gap-2 p-1 bg-ios-gray6 dark:bg-gray-800 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setSettlementType('global')}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              settlementType === 'global'
+                ? 'bg-white dark:bg-gray-700 text-ios-blue shadow-sm'
+                : 'text-gray-600 dark:text-gray-400'
+            }`}
+          >
+            Settle All
+          </button>
+          <button
+            type="button"
+            onClick={() => setSettlementType('partial')}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              settlementType === 'partial'
+                ? 'bg-white dark:bg-gray-700 text-ios-blue shadow-sm'
+                : 'text-gray-600 dark:text-gray-400'
+            }`}
+          >
+            Partial Amount
+          </button>
+        </div>
+      </div>
+
+      {/* Net balance display for global settlement */}
+      {settlementType === 'global' && netBalance && fromPerson && toPerson && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl"
+        >
+          {calculatingNet ? (
+            <p className="text-sm text-blue-800 dark:text-blue-200">Calculating net balance...</p>
+          ) : netBalance.direction === 'settled' ? (
+            <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+              All balances are settled between {fromPerson.name} and {toPerson.name}
+            </p>
+          ) : (
+            <div>
+              <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                Net balance: {netBalance.direction === 'A_owes_B' ? fromPerson.name : toPerson.name} owes{' '}
+                {netBalance.direction === 'A_owes_B' ? toPerson.name : fromPerson.name}{' '}
+                <span className="font-bold">{netBalance.currency} {netBalance.amount.toFixed(2)}</span>
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                This will settle all balances between these people
+              </p>
+            </div>
+          )}
+        </motion.div>
+      )}
+
       {/* From person selector */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -301,7 +410,12 @@ export function SettlementForm({
                 onChange={(e) => setAmount(e.target.value)}
                 onBlur={() => handleBlur('amount')}
                 placeholder="0.00"
-                className={`w-full pl-10 pr-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border ${
+                readOnly={settlementType === 'global'}
+                className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
+                  settlementType === 'global'
+                    ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'
+                    : 'bg-ios-gray6 dark:bg-gray-800'
+                } ${
                   touched.amount && errors.amount
                     ? 'border-ios-red'
                     : 'border-transparent'
@@ -324,7 +438,12 @@ export function SettlementForm({
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            className="px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base font-medium"
+            disabled={settlementType === 'global'}
+            className={`px-4 py-3 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base font-medium ${
+              settlementType === 'global'
+                ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'
+                : 'bg-ios-gray6 dark:bg-gray-800'
+            }`}
           >
             <option value="AUD">AUD</option>
             <option value="USD">USD</option>
