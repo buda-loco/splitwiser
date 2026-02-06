@@ -3,9 +3,8 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { TemplateForm } from '@/components/TemplateForm';
-import { getTemplateById, updateTemplate, deleteTemplate, getParticipantById } from '@/lib/db/stores';
+import { getTemplateById, deleteTemplate } from '@/lib/db/stores';
 import type { TemplateFormData } from '@/components/TemplateForm';
-import type { TemplateParticipant } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 
 export default function EditTemplatePage() {
@@ -28,37 +27,29 @@ export default function EditTemplatePage() {
 
         const { template, participants: templateParticipants } = result;
 
-        // Load full participant details
-        const participantDetails: ParticipantWithDetails[] = await Promise.all(
-          templateParticipants.map(async (tp: TemplateParticipant) => {
-            if (tp.participant_id) {
-              const p = await getParticipantById(tp.participant_id);
-              return p ? {
-                id: tp.participant_id,
-                type: 'participant' as const,
-                name: p.name,
-                email: p.email,
-                phone: p.phone,
-                split_value: tp.split_value
-              } : null;
-            } else if (tp.user_id) {
-              // TODO: Load user details when getUserById exists
-              return {
-                id: tp.user_id,
-                type: 'user' as const,
-                name: 'User',
-                split_value: tp.split_value
-              };
-            }
-            return null;
-          })
-        ).then(results => results.filter(Boolean) as ParticipantWithDetails[]);
+        // Build ParticipantWithDetails from TemplateParticipant
+        // Note: We don't have access to full participant details (name, email)
+        // so we create minimal records with display names
+        const participantDetails: ParticipantWithDetails[] = templateParticipants.map(tp => {
+          const name = tp.user_id 
+            ? `User ${tp.user_id.slice(0, 8)}` 
+            : tp.participant_id 
+            ? `Participant ${tp.participant_id.slice(0, 8)}`
+            : 'Unknown';
+
+          return {
+            user_id: tp.user_id,
+            participant_id: tp.participant_id,
+            name,
+            email: null
+          };
+        });
 
         // Create splits from template participants
-        const splits = participantDetails.map(p => ({
-          user_id: p.type === 'user' ? p.id : null,
-          participant_id: p.type === 'participant' ? p.id : null,
-          split_value: p.split_value || null
+        const splits = templateParticipants.map(tp => ({
+          user_id: tp.user_id,
+          participant_id: tp.participant_id,
+          split_value: tp.split_value
         }));
 
         setInitialData({
@@ -92,9 +83,14 @@ export default function EditTemplatePage() {
         split_type: formData.split_type,
         created_by_user_id: userId,
         participants: formData.participants.map(p => ({
-          user_id: p.type === 'user' ? p.id : null,
-          participant_id: p.type === 'participant' ? p.id : null,
-          split_value: formData.split_type === 'equal' ? null : (p.split_value || null)
+          user_id: p.user_id,
+          participant_id: p.participant_id,
+          split_value: formData.split_type === 'equal' ? null : (
+            formData.splits.find(s => 
+              (s.user_id && s.user_id === p.user_id) || 
+              (s.participant_id && s.participant_id === p.participant_id)
+            )?.split_value || null
+          )
         }))
       });
 

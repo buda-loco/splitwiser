@@ -37,20 +37,23 @@ export type TemplateFormData = {
  * - Inline validation with error messages
  * - iOS-native design (San Francisco font, native controls)
  * - Disabled submit when form is invalid
+ * - Optional initialData for editing existing templates
  */
 export function TemplateForm({
+  initialData,
   onSubmit,
   onCancel
 }: {
+  initialData?: TemplateFormData;
   onSubmit: (template: TemplateFormData) => void;
   onCancel?: () => void;
 }) {
-  // Form state
-  const [name, setName] = useState('');
-  const [splitType, setSplitType] = useState<SplitMethod>('equal');
+  // Form state - initialize from initialData if provided
+  const [name, setName] = useState(initialData?.name || '');
+  const [splitType, setSplitType] = useState<SplitMethod>(initialData?.split_type || 'equal');
 
   // Participant and split state
-  const [participants, setParticipants] = useState<ParticipantWithDetails[]>([]);
+  const [participants, setParticipants] = useState<ParticipantWithDetails[]>(initialData?.participants || []);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
 
   // Multi-step navigation
@@ -60,6 +63,34 @@ export function TemplateForm({
   const [touched, setTouched] = useState({
     name: false
   });
+
+  // Placeholder amount for template previews (templates store ratios, not amounts)
+  const PLACEHOLDER_AMOUNT = 100;
+
+  // Initialize splits from initialData
+  useEffect(() => {
+    if (initialData?.splits && initialData.splits.length > 0 && initialData.participants.length > 0) {
+      // Convert splits to ExpenseSplit format for compatibility
+      const convertedSplits: ExpenseSplit[] = initialData.participants.map((participant, index) => {
+        const split = initialData.splits.find(s =>
+          (s.user_id && s.user_id === participant.user_id) ||
+          (s.participant_id && s.participant_id === participant.participant_id)
+        );
+        
+        return {
+          id: `temp-${index}`,
+          expense_id: 'template',
+          user_id: participant.user_id,
+          participant_id: participant.participant_id,
+          amount: 0, // Not used in templates
+          split_type: initialData.split_type,
+          split_value: split?.split_value || null,
+          created_at: new Date().toISOString()
+        };
+      });
+      setSplits(convertedSplits);
+    }
+  }, [initialData]);
 
   // Validation errors
   const errors = {
@@ -78,193 +109,134 @@ export function TemplateForm({
       // Equal split is always valid if participants exist
       return participants.length >= 2;
     }
+    
+    // For other split types, validate using the split data
+    if (splits.length !== participants.length) return false;
 
-    // For percentage, shares, and exact, check if splits are valid
-    if (splits.length === 0) return false;
-
-    if (splitType === 'percentage') {
-      // Percentages should total 100%
-      const totalPercentage = splits.reduce((sum, s) => sum + (s.split_value || 0), 0);
-      return Math.abs(totalPercentage - 100) < 0.01;
-    }
-
-    if (splitType === 'shares') {
-      // At least one participant should have a share > 0
-      return splits.some(s => (s.split_value || 0) > 0);
-    }
-
-    if (splitType === 'exact') {
-      // For exact amounts, all participants should have a value
-      return splits.every(s => (s.split_value || 0) > 0);
-    }
-
-    return false;
+    // Check that each participant has a valid split
+    return participants.every((p) => {
+      const split = splits.find(
+        (s) => 
+          (s.user_id && s.user_id === p.user_id) ||
+          (s.participant_id && s.participant_id === p.participant_id)
+      );
+      return split && split.split_value !== null && split.split_value > 0;
+    });
   })();
 
-  // Handle field blur to mark as touched
-  const handleBlur = (field: keyof typeof touched) => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-  };
-
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (step === 'basic') {
-      // Mark all fields as touched to show validation errors
-      setTouched({ name: true });
-
-      // Only advance if basic form is valid
-      if (basicValid) {
-        setStep('participants');
-      }
-    } else if (step === 'participants') {
-      // Final submission
-      if (participantsValid && splitsValid) {
-        // Extract split values from the splits
-        const templateSplits = participants.map(participant => {
-          const split = splits.find(s =>
-            (s.user_id && s.user_id === participant.user_id) ||
-            (s.participant_id && s.participant_id === participant.participant_id)
-          );
-
-          return {
-            user_id: participant.user_id || null,
-            participant_id: participant.participant_id || null,
-            split_value: splitType === 'equal' ? null : (split?.split_value || null)
-          };
-        });
-
-        onSubmit({
-          name,
-          split_type: splitType,
-          participants,
-          splits: templateSplits
-        });
-
-        // Clear form after successful submission
-        setName('');
-        setSplitType('equal');
-        setParticipants([]);
-        setSplits([]);
-        setStep('basic');
-        setTouched({ name: false });
-      }
+  // Handlers
+  function handleNextStep() {
+    setTouched({ ...touched, name: true });
+    if (basicValid) {
+      setStep('participants');
     }
-  };
+  }
 
-  // Reset splits when split type or participants change
-  useEffect(() => {
-    setSplits([]);
-  }, [splitType, participants]);
+  function handleSubmit() {
+    if (!basicValid || !participantsValid || !splitsValid) return;
+
+    // Build splits array from current state
+    const formSplits = participants.map((p) => {
+      if (splitType === 'equal') {
+        return {
+          user_id: p.user_id,
+          participant_id: p.participant_id,
+          split_value: null
+        };
+      }
+
+      // Find corresponding split value
+      const split = splits.find(
+        (s) =>
+          (s.user_id && s.user_id === p.user_id) ||
+          (s.participant_id && s.participant_id === p.participant_id)
+      );
+
+      return {
+        user_id: p.user_id,
+        participant_id: p.participant_id,
+        split_value: split?.split_value || null
+      };
+    });
+
+    onSubmit({
+      name,
+      split_type: splitType,
+      participants,
+      splits: formSplits
+    });
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Step indicator */}
-      <div className="flex gap-2 mb-6">
-        <div className="flex-1 h-1 rounded transition-colors bg-ios-blue" />
-        <div className={`flex-1 h-1 rounded transition-colors ${step === 'participants' ? 'bg-ios-blue' : 'bg-ios-gray5 dark:bg-gray-700'}`} />
-      </div>
-
-      {/* Step 1: Basic info (name + split type) */}
+    <div className="space-y-4">
+      {/* Step 1: Basic Info */}
       {step === 'basic' && (
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
-          className="space-y-5"
+          className="space-y-4"
         >
           {/* Template Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Template Name
+            <label className="block text-sm font-medium text-ios-black dark:text-white mb-2">
+              Template Name *
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onBlur={() => handleBlur('name')}
-              placeholder="e.g., Trip with Friends"
-              maxLength={100}
-              className={`w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border ${
-                touched.name && errors.name
-                  ? 'border-ios-red'
-                  : 'border-transparent'
-              } focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base`}
+              onBlur={() => setTouched({ ...touched, name: true })}
+              placeholder="e.g., Weekend Trip Split"
+              className="w-full px-4 py-3 bg-white dark:bg-ios-gray1 text-ios-black dark:text-white rounded-xl border border-ios-gray4 dark:border-ios-gray2 focus:border-ios-blue focus:ring-2 focus:ring-ios-blue/20 transition-all"
             />
             {touched.name && errors.name && (
-              <motion.p
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                role="alert"
-                className="mt-1.5 text-xs text-ios-red"
-              >
-                {errors.name}
-              </motion.p>
+              <p className="text-ios-red text-sm mt-1">{errors.name}</p>
             )}
           </div>
 
-          {/* Split Type Selector */}
+          {/* Split Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Split Method
+            <label className="block text-sm font-medium text-ios-black dark:text-white mb-2">
+              Split Type *
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setSplitType('equal')}
-                className={`px-4 py-3 rounded-lg font-medium transition-colors ${
-                  splitType === 'equal'
-                    ? 'bg-ios-blue text-white'
-                    : 'bg-ios-gray6 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
-                }`}
-              >
-                Equally
-              </button>
-              <button
-                type="button"
-                onClick={() => setSplitType('percentage')}
-                className={`px-4 py-3 rounded-lg font-medium transition-colors ${
-                  splitType === 'percentage'
-                    ? 'bg-ios-blue text-white'
-                    : 'bg-ios-gray6 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
-                }`}
-              >
-                By Percentage
-              </button>
-              <button
-                type="button"
-                onClick={() => setSplitType('shares')}
-                className={`px-4 py-3 rounded-lg font-medium transition-colors ${
-                  splitType === 'shares'
-                    ? 'bg-ios-blue text-white'
-                    : 'bg-ios-gray6 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
-                }`}
-              >
-                By Shares
-              </button>
-              <button
-                type="button"
-                onClick={() => setSplitType('exact')}
-                className={`px-4 py-3 rounded-lg font-medium transition-colors ${
-                  splitType === 'exact'
-                    ? 'bg-ios-blue text-white'
-                    : 'bg-ios-gray6 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
-                }`}
-              >
-                Fixed Amounts
-              </button>
+              {(['equal', 'percentage', 'shares', 'exact'] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setSplitType(type)}
+                  className={`px-4 py-3 rounded-xl font-medium transition-all ${
+                    splitType === type
+                      ? 'bg-ios-blue text-white'
+                      : 'bg-white dark:bg-ios-gray1 text-ios-black dark:text-white border border-ios-gray4 dark:border-ios-gray2'
+                  }`}
+                >
+                  {type === 'equal' ? 'Equal' : type === 'percentage' ? 'Percentage' : type === 'shares' ? 'Shares' : 'Exact Amount'}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Description of selected split type */}
-          <div className="bg-ios-gray6 dark:bg-gray-800 rounded-xl p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {splitType === 'equal' && 'Split equally among all participants'}
-              {splitType === 'percentage' && 'Assign a percentage to each participant (must total 100%)'}
-              {splitType === 'shares' && 'Assign shares to each participant (e.g., 1, 2, 3)'}
-              {splitType === 'exact' && 'Set fixed amounts or percentages for each participant'}
-            </p>
+          {/* Actions */}
+          <div className="flex gap-2 pt-4">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex-1 px-4 py-3 bg-ios-gray5 dark:bg-ios-gray2 text-ios-black dark:text-white rounded-xl font-medium active:scale-95 transition-transform"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleNextStep}
+              disabled={!basicValid}
+              className="flex-1 px-4 py-3 bg-ios-blue text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"
+            >
+              Next
+            </button>
           </div>
         </motion.div>
       )}
@@ -277,116 +249,90 @@ export function TemplateForm({
           exit={{ opacity: 0, x: -20 }}
           className="space-y-4"
         >
+          {/* Back button */}
           <button
             type="button"
             onClick={() => setStep('basic')}
-            className="flex items-center gap-2 text-ios-blue dark:text-blue-400 font-medium active:opacity-70 transition-opacity"
+            className="text-ios-blue text-sm font-medium"
           >
-            <span>←</span>
-            <span>Back</span>
+            ← Back to Basic Info
           </button>
 
           {/* Participant Picker */}
-          <ParticipantPicker
-            selected={participants}
-            onChange={setParticipants}
-          />
+          <div>
+            <label className="block text-sm font-medium text-ios-black dark:text-white mb-2">
+              Participants * (minimum 2)
+            </label>
+            <ParticipantPicker
+              selected={participants}
+              onChange={setParticipants}
+            />
+            {participants.length < 2 && (
+              <p className="text-ios-gray dark:text-ios-gray3 text-sm mt-1">
+                Add at least 2 participants
+              </p>
+            )}
+          </div>
 
-          {!participantsValid && participants.length > 0 && (
-            <p className="text-sm text-ios-red mt-2">
-              Templates require at least 2 participants
-            </p>
-          )}
-
-          {/* Split Configuration (only show when participants selected) */}
+          {/* Split Configuration */}
           {participants.length >= 2 && (
-            <div className="pt-4 border-t border-gray-300 dark:border-gray-600">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Configure Split Values
-              </h3>
-
-              {/* Equal split - no configuration needed */}
+            <div>
+              <label className="block text-sm font-medium text-ios-black dark:text-white mb-2">
+                Split Configuration
+              </label>
               {splitType === 'equal' && (
                 <SplitEqual
-                  amount={100} // Dummy amount for display
+                  amount={PLACEHOLDER_AMOUNT}
                   participants={participants}
                   onChange={setSplits}
                 />
               )}
-
-              {/* Percentage split */}
               {splitType === 'percentage' && (
                 <SplitByPercentage
-                  amount={100} // Dummy amount for display
+                  amount={PLACEHOLDER_AMOUNT}
                   participants={participants}
                   onChange={setSplits}
                 />
               )}
-
-              {/* Shares split */}
               {splitType === 'shares' && (
                 <SplitByShares
-                  amount={100} // Dummy amount for display
+                  amount={PLACEHOLDER_AMOUNT}
                   participants={participants}
                   onChange={setSplits}
                 />
               )}
-
-              {/* Exact amounts - use percentage component but label differently */}
               {splitType === 'exact' && (
-                <SplitByPercentage
-                  amount={100} // Dummy amount for display
-                  participants={participants}
-                  onChange={setSplits}
-                />
-              )}
-
-              {!splitsValid && splits.length > 0 && (
-                <p className="text-sm text-ios-red mt-2">
-                  {splitType === 'percentage' && 'Percentages must total 100%'}
-                  {splitType === 'shares' && 'At least one participant must have shares'}
-                  {splitType === 'exact' && 'All participants must have values'}
-                </p>
+                <div className="p-4 bg-ios-gray5 dark:bg-ios-gray2 rounded-xl">
+                  <p className="text-sm text-ios-gray dark:text-ios-gray3">
+                    Exact amounts will be entered when creating expenses from this template.
+                  </p>
+                </div>
               )}
             </div>
           )}
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-4">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex-1 px-4 py-3 bg-ios-gray5 dark:bg-ios-gray2 text-ios-black dark:text-white rounded-xl font-medium active:scale-95 transition-transform"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!participantsValid || !splitsValid}
+              className="flex-1 px-4 py-3 bg-ios-blue text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"
+            >
+              {initialData ? 'Update Template' : 'Create Template'}
+            </button>
+          </div>
         </motion.div>
       )}
-
-      {/* Action buttons */}
-      <div className="flex gap-3 pt-4">
-        {onCancel && (
-          <motion.button
-            type="button"
-            onClick={onCancel}
-            whileTap={{ scale: 0.97 }}
-            className="flex-1 px-6 py-3.5 bg-ios-gray6 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-base"
-          >
-            Cancel
-          </motion.button>
-        )}
-        <motion.button
-          type="submit"
-          disabled={
-            (step === 'basic' && !basicValid) ||
-            (step === 'participants' && (!participantsValid || !splitsValid))
-          }
-          whileTap={{ scale:
-            (step === 'basic' && basicValid) ||
-            (step === 'participants' && participantsValid && splitsValid)
-              ? 0.97
-              : 1
-          }}
-          className={`flex-1 px-6 py-3.5 rounded-xl font-semibold text-base ${
-            (step === 'basic' && basicValid) ||
-            (step === 'participants' && participantsValid && splitsValid)
-              ? 'bg-ios-blue text-white'
-              : 'bg-ios-gray5 dark:bg-gray-700 text-ios-gray2 cursor-not-allowed'
-          }`}
-        >
-          {step === 'participants' ? 'Create Template' : 'Next'}
-        </motion.button>
-      </div>
-    </form>
+    </div>
   );
 }
