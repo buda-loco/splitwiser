@@ -11,7 +11,7 @@
  * - Multi-currency support (separate balances per currency)
  */
 
-import { getExpenses, getExpenseSplits } from '@/lib/db/stores';
+import { getExpenses, getExpenseSplits, getExpenseTags } from '@/lib/db/stores';
 import type { PersonIdentifier, BalanceEntry, BalanceResult } from './types';
 import { simplifyDebts } from './simplification';
 import { convertBalances } from '@/lib/currency/exchangeRates';
@@ -335,4 +335,231 @@ export async function calculateNetBalance(
     currency: primaryCurrency,
     direction,
   };
+}
+
+/**
+ * Calculate balance between two people for a specific tag
+ *
+ * Only considers expenses that have the specified tag.
+ * Similar to calculateNetBalance but filtered to a single tag context.
+ *
+ * @param personA - First person identifier
+ * @param personB - Second person identifier
+ * @param tag - Tag to filter expenses by
+ * @returns Net balance with amount, currency, and direction for this tag
+ */
+export async function calculateTagBalance(
+  personA: PersonIdentifier,
+  personB: PersonIdentifier,
+  tag: string
+): Promise<NetBalanceResult> {
+  const normalizedTag = tag.toLowerCase();
+
+  // Fetch all non-deleted expenses
+  const expenses = await getExpenses();
+
+  // Filter expenses to only those with the specified tag
+  const taggedExpenseIds = new Set<string>();
+  for (const expense of expenses) {
+    if (expense.is_deleted) continue;
+
+    const tags = await getExpenseTags(expense.id);
+    if (tags.includes(normalizedTag)) {
+      taggedExpenseIds.add(expense.id);
+    }
+  }
+
+  // Track balances by currency
+  const balancesByCurrency = new Map<string, { aOwesB: number; bOwesA: number }>();
+
+  // Helper to check if two PersonIdentifiers match
+  const personsMatch = (p1: PersonIdentifier, p2: PersonIdentifier): boolean => {
+    if (p1.user_id && p2.user_id) {
+      return p1.user_id === p2.user_id;
+    }
+    if (p1.participant_id && p2.participant_id) {
+      return p1.participant_id === p2.participant_id;
+    }
+    return false;
+  };
+
+  // Track primary currency (most used currency in tagged expenses)
+  const totalsByCurrency = new Map<string, number>();
+
+  // Process each tagged expense
+  for (const expense of expenses) {
+    if (!taggedExpenseIds.has(expense.id)) continue;
+
+    const currency = expense.currency;
+    const payerId = expense.paid_by_user_id;
+
+    if (!payerId) continue;
+
+    // Track totals for primary currency determination
+    totalsByCurrency.set(currency, (totalsByCurrency.get(currency) || 0) + expense.amount);
+
+    // Initialize currency tracking
+    if (!balancesByCurrency.has(currency)) {
+      balancesByCurrency.set(currency, { aOwesB: 0, bOwesA: 0 });
+    }
+
+    const currencyBalances = balancesByCurrency.get(currency)!;
+
+    // Get splits for this expense
+    const splits = await getExpenseSplits(expense.id);
+
+    // Process each split
+    for (const split of splits) {
+      const splitPersonId = split.user_id || split.participant_id;
+
+      if (!splitPersonId) continue;
+      if (splitPersonId === payerId) continue;
+
+      const from: PersonIdentifier = {
+        user_id: split.user_id,
+        participant_id: split.participant_id,
+        name: getParticipantDisplayName(split),
+      };
+
+      const to: PersonIdentifier = {
+        user_id: payerId,
+        participant_id: null,
+        name: getParticipantDisplayName({ user_id: payerId }),
+      };
+
+      // Check if this split involves our two people
+      // Case 1: A owes B (personA is the split person, personB is the payer)
+      if (personsMatch(from, personA) && personsMatch(to, personB)) {
+        currencyBalances.aOwesB += split.amount;
+      }
+      // Case 2: B owes A (personB is the split person, personA is the payer)
+      else if (personsMatch(from, personB) && personsMatch(to, personA)) {
+        currencyBalances.bOwesA += split.amount;
+      }
+    }
+  }
+
+  // Determine primary currency
+  let primaryCurrency = 'AUD';
+  let maxExpenses = 0;
+  for (const [currency, total] of totalsByCurrency.entries()) {
+    if (total > maxExpenses) {
+      maxExpenses = total;
+      primaryCurrency = currency;
+    }
+  }
+
+  // Calculate net balance (converting to primary currency if needed)
+  let totalAOwesB = 0;
+  let totalBOwesA = 0;
+
+  for (const [currency, { aOwesB, bOwesA }] of balancesByCurrency.entries()) {
+    if (currency === primaryCurrency) {
+      totalAOwesB += aOwesB;
+      totalBOwesA += bOwesA;
+    } else {
+      // Convert to primary currency
+      const tempBalances: BalanceEntry[] = [];
+
+      if (aOwesB > 0) {
+        tempBalances.push({
+          from: personA,
+          to: personB,
+          amount: aOwesB,
+          currency,
+        });
+      }
+
+      if (bOwesA > 0) {
+        tempBalances.push({
+          from: personB,
+          to: personA,
+          amount: bOwesA,
+          currency,
+        });
+      }
+
+      const converted = await convertBalances(tempBalances, primaryCurrency as CurrencyCode);
+
+      for (const entry of converted) {
+        if (personsMatch(entry.from, personA) && personsMatch(entry.to, personB)) {
+          totalAOwesB += entry.amount;
+        } else if (personsMatch(entry.from, personB) && personsMatch(entry.to, personA)) {
+          totalBOwesA += entry.amount;
+        }
+      }
+    }
+  }
+
+  // Calculate net balance
+  const netAmount = totalAOwesB - totalBOwesA;
+
+  // Determine direction
+  let direction: NetBalanceResult['direction'];
+  let amount: number;
+
+  if (Math.abs(netAmount) < 0.01) {
+    direction = 'settled';
+    amount = 0;
+  } else if (netAmount > 0) {
+    direction = 'A_owes_B';
+    amount = netAmount;
+  } else {
+    direction = 'B_owes_A';
+    amount = Math.abs(netAmount);
+  }
+
+  return {
+    amount,
+    currency: primaryCurrency,
+    direction,
+  };
+}
+
+/**
+ * Get all tags that have balances between two people
+ *
+ * Returns a list of tags where there are outstanding balances
+ * between the two specified people.
+ *
+ * @param personA - First person identifier
+ * @param personB - Second person identifier
+ * @returns Array of tags with balance information
+ */
+export async function getTagsWithBalances(
+  personA: PersonIdentifier,
+  personB: PersonIdentifier
+): Promise<Array<{ tag: string; balance: number; currency: string }>> {
+  // Fetch all non-deleted expenses
+  const expenses = await getExpenses();
+
+  // Collect all unique tags from expenses
+  const allTagsSet = new Set<string>();
+  for (const expense of expenses) {
+    if (expense.is_deleted) continue;
+
+    const tags = await getExpenseTags(expense.id);
+    tags.forEach(tag => allTagsSet.add(tag));
+  }
+
+  // Calculate balance for each tag
+  const tagsWithBalances: Array<{ tag: string; balance: number; currency: string }> = [];
+
+  for (const tag of Array.from(allTagsSet)) {
+    const tagBalance = await calculateTagBalance(personA, personB, tag);
+
+    // Only include tags with non-zero balances
+    if (tagBalance.amount > 0.01) {
+      tagsWithBalances.push({
+        tag,
+        balance: tagBalance.amount,
+        currency: tagBalance.currency,
+      });
+    }
+  }
+
+  // Sort by balance amount (descending)
+  tagsWithBalances.sort((a, b) => b.balance - a.balance);
+
+  return tagsWithBalances;
 }
