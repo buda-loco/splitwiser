@@ -11,12 +11,13 @@
  * - Multi-currency support (separate balances per currency)
  */
 
-import { getExpenses, getExpenseSplits, getExpenseTags, getAllTags } from '@/lib/db/stores';
+import { getExpenses, getExpenseSplits, getExpenseTags, getAllTags, getSettlements } from '@/lib/db/stores';
 import type { PersonIdentifier, BalanceEntry, BalanceResult } from './types';
 import { simplifyDebts } from './simplification';
 import { convertBalances } from '@/lib/currency/exchangeRates';
 import type { CurrencyCode } from '@/lib/currency/types';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
+import type { Settlement } from '@/lib/db/types';
 
 /**
  * Net balance result for global settlements
@@ -184,11 +185,15 @@ export async function calculateBalances(options?: {
     }
   }
 
+  // Fetch settlements and apply them to balances
+  const settlements = await getSettlements();
+  let balancesWithSettlements = await applySettlementsToBalances(directBalances, settlements, primaryCurrency);
+
   // Apply simplification if requested
   // Note: Simplified debts lose expense-level detail since they merge multiple debts
   let balances = options?.simplified
-    ? simplifyDebts(directBalances)
-    : directBalances;
+    ? simplifyDebts(balancesWithSettlements)
+    : balancesWithSettlements;
 
   // Convert to target currency if specified
   let currency = primaryCurrency;
@@ -202,6 +207,138 @@ export async function calculateBalances(options?: {
     total_expenses: totalsByCurrency.get(primaryCurrency) || 0,
     currency,
   };
+}
+
+/**
+ * Apply settlements to balance entries, reducing amounts by settled debts
+ *
+ * Algorithm:
+ * - For each balance entry (person A owes person B)
+ * - Sum applicable settlements:
+ *   - Global settlements between A and B
+ *   - Partial settlements from A to B
+ *   - Tag-specific settlements (if balance has tag context)
+ * - Subtract settlement total from balance amount
+ * - Handle over-settlement (flip direction if settlement exceeds balance)
+ * - Remove zero balances (fully settled)
+ *
+ * @param balances - Raw balance entries from expense calculation
+ * @param settlements - All settlement records
+ * @param primaryCurrency - Primary currency for multi-currency conversion
+ * @returns Adjusted balance entries with settlements applied
+ */
+async function applySettlementsToBalances(
+  balances: BalanceEntry[],
+  settlements: Settlement[],
+  primaryCurrency: string
+): Promise<BalanceEntry[]> {
+  // Helper to check if two PersonIdentifiers match
+  const personsMatch = (p1: PersonIdentifier, p2: PersonIdentifier): boolean => {
+    if (p1.user_id && p2.user_id) {
+      return p1.user_id === p2.user_id;
+    }
+    if (p1.participant_id && p2.participant_id) {
+      return p1.participant_id === p2.participant_id;
+    }
+    return false;
+  };
+
+  const adjustedBalances: BalanceEntry[] = [];
+
+  for (const balance of balances) {
+    // Calculate total settlements applicable to this balance
+    let totalSettled = 0;
+
+    for (const settlement of settlements) {
+      const settlementFrom: PersonIdentifier = {
+        user_id: settlement.from_user_id,
+        participant_id: settlement.from_participant_id,
+        name: getParticipantDisplayName({ user_id: settlement.from_user_id, participant_id: settlement.from_participant_id }),
+      };
+
+      const settlementTo: PersonIdentifier = {
+        user_id: settlement.to_user_id,
+        participant_id: settlement.to_participant_id,
+        name: getParticipantDisplayName({ user_id: settlement.to_user_id, participant_id: settlement.to_participant_id }),
+      };
+
+      // Global settlements: reduce balance if settlement is between same two people (in either direction)
+      if (settlement.settlement_type === 'global') {
+        if (
+          (personsMatch(balance.from, settlementFrom) && personsMatch(balance.to, settlementTo)) ||
+          (personsMatch(balance.from, settlementTo) && personsMatch(balance.to, settlementFrom))
+        ) {
+          // Convert settlement amount to balance currency if needed
+          let settlementAmount = settlement.amount;
+          if (settlement.currency !== balance.currency) {
+            const converted = await convertBalances(
+              [{
+                from: settlementFrom,
+                to: settlementTo,
+                amount: settlement.amount,
+                currency: settlement.currency,
+              }],
+              balance.currency as CurrencyCode
+            );
+            settlementAmount = converted[0]?.amount || settlement.amount;
+          }
+          totalSettled += settlementAmount;
+        }
+      }
+
+      // Partial settlements: reduce balance if settlement is from same person to same person
+      if (settlement.settlement_type === 'partial') {
+        if (personsMatch(balance.from, settlementFrom) && personsMatch(balance.to, settlementTo)) {
+          // Convert settlement amount to balance currency if needed
+          let settlementAmount = settlement.amount;
+          if (settlement.currency !== balance.currency) {
+            const converted = await convertBalances(
+              [{
+                from: settlementFrom,
+                to: settlementTo,
+                amount: settlement.amount,
+                currency: settlement.currency,
+              }],
+              balance.currency as CurrencyCode
+            );
+            settlementAmount = converted[0]?.amount || settlement.amount;
+          }
+          totalSettled += settlementAmount;
+        }
+      }
+
+      // Tag-specific settlements: only apply if balance has tag context matching settlement tag
+      // Note: Current balance entries don't have tag field - this is for future enhancement
+      // when balances are calculated per-tag. For now, tag-specific settlements are not applied
+      // in the global balance view.
+    }
+
+    // Apply settlement to balance
+    const adjustedAmount = balance.amount - totalSettled;
+
+    // Handle different scenarios
+    if (Math.abs(adjustedAmount) < 0.01) {
+      // Fully settled (within 1 cent tolerance) - omit from results
+      continue;
+    } else if (adjustedAmount < 0) {
+      // Over-settled - flip direction
+      adjustedBalances.push({
+        from: balance.to,
+        to: balance.from,
+        amount: Math.abs(adjustedAmount),
+        currency: balance.currency,
+        expenses: balance.expenses,
+      });
+    } else {
+      // Partially settled or not settled - keep with reduced amount
+      adjustedBalances.push({
+        ...balance,
+        amount: adjustedAmount,
+      });
+    }
+  }
+
+  return adjustedBalances;
 }
 
 /**
