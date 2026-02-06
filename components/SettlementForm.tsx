@@ -22,7 +22,8 @@ export type SettlementFormData = {
 
 type SettlementFormProps = {
   initialBalance?: BalanceEntry;
-  initialSettlementType?: 'partial' | 'global';
+  initialSettlementType?: 'partial' | 'global' | 'tag_specific';
+  initialTag?: string | null;
   onSubmit?: (data: SettlementFormData) => void | Promise<void>;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -42,6 +43,7 @@ type SettlementFormProps = {
 export function SettlementForm({
   initialBalance,
   initialSettlementType = 'partial',
+  initialTag = null,
   onSubmit,
   onSuccess,
   onCancel
@@ -77,12 +79,19 @@ export function SettlementForm({
     new Date().toISOString().split('T')[0]
   );
 
-  // Settlement type: 'partial' or 'global'
-  const [settlementType, setSettlementType] = useState<'partial' | 'global'>(initialSettlementType);
+  // Settlement type: 'partial', 'global', or 'tag_specific'
+  const [settlementType, setSettlementType] = useState<'partial' | 'global' | 'tag_specific'>(initialSettlementType);
 
   // Net balance for global settlement
   const [netBalance, setNetBalance] = useState<{ amount: number; currency: string; direction: string } | null>(null);
   const [calculatingNet, setCalculatingNet] = useState(false);
+
+  // Tag-specific settlement state
+  const [selectedTag, setSelectedTag] = useState<string | null>(initialTag);
+  const [tagsWithBalances, setTagsWithBalances] = useState<Array<{ tag: string; balance: number; currency: string }>>([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [tagBalance, setTagBalance] = useState<{ amount: number; currency: string; direction: string } | null>(null);
+  const [calculatingTag, setCalculatingTag] = useState(false);
 
   // Track touched fields for validation display
   const [touched, setTouched] = useState({
@@ -97,6 +106,84 @@ export function SettlementForm({
 
   // Error message
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Load tags with balances when tag_specific mode is selected
+  useEffect(() => {
+    const loadTags = async () => {
+      if (settlementType === 'tag_specific' && fromPerson && toPerson) {
+        setLoadingTags(true);
+        try {
+          const tags = await getTagsWithBalances(
+            {
+              user_id: fromPerson.user_id,
+              participant_id: fromPerson.participant_id,
+              name: fromPerson.name,
+            },
+            {
+              user_id: toPerson.user_id,
+              participant_id: toPerson.participant_id,
+              name: toPerson.name,
+            }
+          );
+
+          setTagsWithBalances(tags);
+
+          // If no tags, clear selection
+          if (tags.length === 0) {
+            setSelectedTag(null);
+          }
+        } catch (error) {
+          console.error('Failed to load tags with balances:', error);
+          setErrorMessage('Failed to load tags');
+        } finally {
+          setLoadingTags(false);
+        }
+      }
+    };
+
+    loadTags();
+  }, [settlementType, fromPerson, toPerson]);
+
+  // Calculate tag balance when tag is selected
+  useEffect(() => {
+    const calculateTag = async () => {
+      if (settlementType === 'tag_specific' && fromPerson && toPerson && selectedTag) {
+        setCalculatingTag(true);
+        try {
+          const result = await calculateTagBalance(
+            {
+              user_id: fromPerson.user_id,
+              participant_id: fromPerson.participant_id,
+              name: fromPerson.name,
+            },
+            {
+              user_id: toPerson.user_id,
+              participant_id: toPerson.participant_id,
+              name: toPerson.name,
+            },
+            selectedTag
+          );
+
+          setTagBalance(result);
+
+          // Auto-fill amount and currency from tag balance
+          if (result.direction === 'settled') {
+            setAmount('0');
+          } else {
+            setAmount(result.amount.toFixed(2));
+          }
+          setCurrency(result.currency);
+        } catch (error) {
+          console.error('Failed to calculate tag balance:', error);
+          setErrorMessage('Failed to calculate tag balance');
+        } finally {
+          setCalculatingTag(false);
+        }
+      }
+    };
+
+    calculateTag();
+  }, [settlementType, fromPerson, toPerson, selectedTag]);
 
   // Calculate net balance when settlement type is 'global' and both people are selected
   useEffect(() => {
@@ -233,6 +320,7 @@ export function SettlementForm({
           currency,
           settlement_date: settlementDate,
           settlement_type: settlementType,
+          tag: settlementType === 'tag_specific' ? selectedTag : null,
           created_by_user_id: user.id
         });
 
@@ -273,11 +361,11 @@ export function SettlementForm({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Settlement Type
         </label>
-        <div className="flex gap-2 p-1 bg-ios-gray6 dark:bg-gray-800 rounded-xl">
+        <div className="grid grid-cols-3 gap-2 p-1 bg-ios-gray6 dark:bg-gray-800 rounded-xl">
           <button
             type="button"
             onClick={() => setSettlementType('global')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+            className={`px-3 py-2 rounded-lg font-medium text-xs transition-all ${
               settlementType === 'global'
                 ? 'bg-white dark:bg-gray-700 text-ios-blue shadow-sm'
                 : 'text-gray-600 dark:text-gray-400'
@@ -287,8 +375,19 @@ export function SettlementForm({
           </button>
           <button
             type="button"
+            onClick={() => setSettlementType('tag_specific')}
+            className={`px-3 py-2 rounded-lg font-medium text-xs transition-all ${
+              settlementType === 'tag_specific'
+                ? 'bg-white dark:bg-gray-700 text-ios-blue shadow-sm'
+                : 'text-gray-600 dark:text-gray-400'
+            }`}
+          >
+            Settle Tag
+          </button>
+          <button
+            type="button"
             onClick={() => setSettlementType('partial')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+            className={`px-3 py-2 rounded-lg font-medium text-xs transition-all ${
               settlementType === 'partial'
                 ? 'bg-white dark:bg-gray-700 text-ios-blue shadow-sm'
                 : 'text-gray-600 dark:text-gray-400'
@@ -298,6 +397,71 @@ export function SettlementForm({
           </button>
         </div>
       </div>
+
+      {/* Tag selector for tag_specific settlement */}
+      {settlementType === 'tag_specific' && fromPerson && toPerson && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select Tag
+          </label>
+
+          {loadingTags ? (
+            <div className="px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl text-sm text-ios-gray">
+              Loading tags...
+            </div>
+          ) : tagsWithBalances.length === 0 ? (
+            <div className="px-4 py-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                No tagged expenses between these people
+              </p>
+            </div>
+          ) : (
+            <select
+              value={selectedTag || ''}
+              onChange={(e) => setSelectedTag(e.target.value || null)}
+              className="w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base"
+            >
+              <option value="">Select a tag...</option>
+              {tagsWithBalances.map(({ tag, balance, currency }) => (
+                <option key={tag} value={tag}>
+                  #{tag}: {currency} {balance.toFixed(2)}
+                </option>
+              ))}
+            </select>
+          )}
+        </motion.div>
+      )}
+
+      {/* Tag balance display */}
+      {settlementType === 'tag_specific' && tagBalance && selectedTag && fromPerson && toPerson && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl"
+        >
+          {calculatingTag ? (
+            <p className="text-sm text-blue-800 dark:text-blue-200">Calculating tag balance...</p>
+          ) : tagBalance.direction === 'settled' ? (
+            <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+              All balances for #{selectedTag} are settled between {fromPerson.name} and {toPerson.name}
+            </p>
+          ) : (
+            <div>
+              <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                Balance for #{selectedTag}: {tagBalance.direction === 'A_owes_B' ? fromPerson.name : toPerson.name} owes{' '}
+                {tagBalance.direction === 'A_owes_B' ? toPerson.name : fromPerson.name}{' '}
+                <span className="font-bold">{tagBalance.currency} {tagBalance.amount.toFixed(2)}</span>
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                This will settle balances for #{selectedTag}
+              </p>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Net balance display for global settlement */}
       {settlementType === 'global' && netBalance && fromPerson && toPerson && (
@@ -410,9 +574,9 @@ export function SettlementForm({
                 onChange={(e) => setAmount(e.target.value)}
                 onBlur={() => handleBlur('amount')}
                 placeholder="0.00"
-                readOnly={settlementType === 'global'}
+                readOnly={settlementType === 'global' || (settlementType === 'tag_specific' && !!selectedTag)}
                 className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
-                  settlementType === 'global'
+                  settlementType === 'global' || (settlementType === 'tag_specific' && !!selectedTag)
                     ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'
                     : 'bg-ios-gray6 dark:bg-gray-800'
                 } ${
@@ -438,9 +602,9 @@ export function SettlementForm({
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            disabled={settlementType === 'global'}
+            disabled={settlementType === 'global' || (settlementType === 'tag_specific' && !!selectedTag)}
             className={`px-4 py-3 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base font-medium ${
-              settlementType === 'global'
+              settlementType === 'global' || (settlementType === 'tag_specific' && !!selectedTag)
                 ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'
                 : 'bg-ios-gray6 dark:bg-gray-800'
             }`}
