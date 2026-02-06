@@ -8,6 +8,7 @@ interface ParticipantPickerProps {
   selected: ParticipantWithDetails[];
   onChange: (participants: ParticipantWithDetails[]) => void;
   selectedTags?: string[];
+  singleSelect?: boolean;
 }
 
 /**
@@ -21,7 +22,7 @@ interface ParticipantPickerProps {
  * - Expandable suggestions (show 5, expand to 10)
  * - iOS-native button and input styling
  */
-export function ParticipantPicker({ selected, onChange, selectedTags }: ParticipantPickerProps) {
+export function ParticipantPicker({ selected, onChange, selectedTags, singleSelect }: ParticipantPickerProps) {
   const { recent, frequent, loading } = useParticipants();
   const { suggestedParticipants: tagSuggestions } = useTagSuggestions(selectedTags || []);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
@@ -35,16 +36,26 @@ export function ParticipantPicker({ selected, onChange, selectedTags }: Particip
         p.participant_id === participant.participant_id
     );
 
-    if (isSelected) {
-      onChange(
-        selected.filter(
-          p =>
-            p.user_id !== participant.user_id ||
-            p.participant_id !== participant.participant_id
-        )
-      );
+    if (singleSelect) {
+      // Single select mode: replace selection or clear if same
+      if (isSelected) {
+        onChange([]);
+      } else {
+        onChange([participant]);
+      }
     } else {
-      onChange([...selected, participant]);
+      // Multi-select mode: toggle
+      if (isSelected) {
+        onChange(
+          selected.filter(
+            p =>
+              p.user_id !== participant.user_id ||
+              p.participant_id !== participant.participant_id
+          )
+        );
+      } else {
+        onChange([...selected, participant]);
+      }
     }
   };
 
@@ -59,7 +70,11 @@ export function ParticipantPicker({ selected, onChange, selectedTags }: Particip
       email: null,
     };
 
-    onChange([...selected, newParticipant]);
+    if (singleSelect) {
+      onChange([newParticipant]);
+    } else {
+      onChange([...selected, newParticipant]);
+    }
     setNewParticipantName('');
   };
 
