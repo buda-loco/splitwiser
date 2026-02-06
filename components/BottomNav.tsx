@@ -7,6 +7,7 @@ import Link from 'next/link'
 const tabs = [
   { id: 'expenses', label: 'Expenses', path: '/', icon: '💸' },
   { id: 'balances', label: 'Balances', path: '/balances', icon: '💰' },
+  { id: 'settlements', label: 'Settlements', path: '/settlements', icon: '✅' },
   { id: 'settings', label: 'Settings', path: '/settings', icon: '⚙️' },
 ]
 
@@ -22,6 +23,8 @@ export function BottomNav() {
             <Link
               key={tab.id}
               href={tab.path}
+              aria-label={tab.label}
+              aria-current={isActive ? 'page' : undefined}
               className="flex flex-col items-center justify-center flex-1 relative"
             >
               <motion.div
