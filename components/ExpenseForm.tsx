@@ -97,6 +97,12 @@ export function ExpenseForm({
     expense_date: false
   });
 
+  // Submission state for loading animation
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Shake animation state for validation errors
+  const [shakeField, setShakeField] = useState<string | null>(null);
+
   // Auto-detect currency from location on mount
   useEffect(() => {
     async function autoDetectCurrency() {
@@ -156,8 +162,14 @@ export function ExpenseForm({
     setTouched(prev => ({ ...prev, [field]: true }));
   };
 
+  // Trigger shake animation for a field
+  const triggerShake = (field: string) => {
+    setShakeField(field);
+    setTimeout(() => setShakeField(null), 500);
+  };
+
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (step === 'basic') {
@@ -169,10 +181,16 @@ export function ExpenseForm({
         expense_date: true
       });
 
-      // Only advance if basic form is valid
-      if (basicValid) {
-        setStep('participants');
+      // Trigger shake animation on invalid fields
+      if (!basicValid) {
+        if (errors.amount) triggerShake('amount');
+        if (errors.description) triggerShake('description');
+        if (errors.category) triggerShake('category');
+        if (errors.expense_date) triggerShake('expense_date');
+        return;
       }
+
+      setStep('participants');
     } else if (step === 'participants') {
       // Advance to split method selection if participants selected
       if (participantsValid) {
@@ -181,6 +199,8 @@ export function ExpenseForm({
     } else if (step === 'splits') {
       // Final submission
       if (splitsValid) {
+        setIsSubmitting(true);
+
         const manual_exchange_rate = manualRate && parseFloat(manualRate) > 0
           ? {
               from_currency: currency,
@@ -189,36 +209,40 @@ export function ExpenseForm({
             }
           : null;
 
-        onSubmit({
-          amount: parseFloat(amount),
-          currency,
-          description,
-          category,
-          expense_date: expenseDate,
-          participants,
-          splits,
-          tags,
-          manual_exchange_rate
-        });
+        try {
+          await onSubmit({
+            amount: parseFloat(amount),
+            currency,
+            description,
+            category,
+            expense_date: expenseDate,
+            participants,
+            splits,
+            tags,
+            manual_exchange_rate
+          });
 
-        // Clear form after successful submission
-        setAmount('');
-        setDescription('');
-        setCategory('');
-        setExpenseDate(new Date().toISOString().split('T')[0]);
-        setParticipants([]);
-        setSplits([]);
-        setTags([]);
-        setManualRate('');
-        setShowManualRate(false);
-        setCurrencyAutoDetected(false);
-        setStep('basic');
-        setTouched({
-          amount: false,
-          description: false,
-          category: false,
-          expense_date: false
-        });
+          // Clear form after successful submission
+          setAmount('');
+          setDescription('');
+          setCategory('');
+          setExpenseDate(new Date().toISOString().split('T')[0]);
+          setParticipants([]);
+          setSplits([]);
+          setTags([]);
+          setManualRate('');
+          setShowManualRate(false);
+          setCurrencyAutoDetected(false);
+          setStep('basic');
+          setTouched({
+            amount: false,
+            description: false,
+            category: false,
+            expense_date: false
+          });
+        } finally {
+          setIsSubmitting(false);
+        }
       }
     }
   };
@@ -326,7 +350,11 @@ export function ExpenseForm({
         <div className="flex gap-2">
           {/* Amount input */}
           <div className="flex-1">
-            <div className="relative">
+            <motion.div
+              className="relative"
+              animate={shakeField === 'amount' ? { x: [-10, 10, -10, 10, 0] } : {}}
+              transition={{ duration: 0.4 }}
+            >
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-ios-gray">
                 {getCurrencySymbol(currency)}
               </div>
@@ -337,13 +365,13 @@ export function ExpenseForm({
                 onChange={(e) => setAmount(e.target.value)}
                 onBlur={() => handleBlur('amount')}
                 placeholder="0.00"
-                className={`w-full pl-10 pr-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border ${
+                className={`w-full pl-10 pr-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border transition-colors ${
                   touched.amount && errors.amount
                     ? 'border-ios-red'
                     : 'border-transparent'
                 } focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base`}
               />
-            </div>
+            </motion.div>
             {touched.amount && errors.amount && (
               <motion.p
                 initial={{ opacity: 0, y: -5 }}
@@ -431,19 +459,24 @@ export function ExpenseForm({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Description
         </label>
-        <input
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          onBlur={() => handleBlur('description')}
-          placeholder="What was this expense for?"
-          maxLength={255}
-          className={`w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border ${
-            touched.description && errors.description
-              ? 'border-ios-red'
-              : 'border-transparent'
-          } focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base`}
-        />
+        <motion.div
+          animate={shakeField === 'description' ? { x: [-10, 10, -10, 10, 0] } : {}}
+          transition={{ duration: 0.4 }}
+        >
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={() => handleBlur('description')}
+            placeholder="What was this expense for?"
+            maxLength={255}
+            className={`w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border transition-colors ${
+              touched.description && errors.description
+                ? 'border-ios-red'
+                : 'border-transparent'
+            } focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base`}
+          />
+        </motion.div>
         {touched.description && errors.description && (
           <motion.p
             initial={{ opacity: 0, y: -5 }}
@@ -461,23 +494,27 @@ export function ExpenseForm({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Category
         </label>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          onBlur={() => handleBlur('category')}
-          className={`w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border ${
-            touched.category && errors.category
-              ? 'border-ios-red'
-              : 'border-transparent'
-          } focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base appearance-none ${
-            !category ? 'text-ios-gray' : ''
-          }`}
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238E8E93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'right 1rem center'
-          }}
+        <motion.div
+          animate={shakeField === 'category' ? { x: [-10, 10, -10, 10, 0] } : {}}
+          transition={{ duration: 0.4 }}
         >
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            onBlur={() => handleBlur('category')}
+            className={`w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border transition-colors ${
+              touched.category && errors.category
+                ? 'border-ios-red'
+                : 'border-transparent'
+            } focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base appearance-none ${
+              !category ? 'text-ios-gray' : ''
+            }`}
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238E8E93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 1rem center'
+            }}
+          >
           <option value="" disabled>Select a category</option>
           <option value="Food">Food</option>
           <option value="Transport">Transport</option>
@@ -485,6 +522,7 @@ export function ExpenseForm({
           <option value="Activities">Activities</option>
           <option value="Other">Other</option>
         </select>
+        </motion.div>
         {touched.category && errors.category && (
           <motion.p
             initial={{ opacity: 0, y: -5 }}
@@ -672,26 +710,40 @@ export function ExpenseForm({
         <motion.button
           type="submit"
           disabled={
+            isSubmitting ||
             (step === 'basic' && !basicValid) ||
             (step === 'participants' && !participantsValid) ||
             (step === 'splits' && !splitsValid)
           }
           whileTap={{ scale:
-            (step === 'basic' && basicValid) ||
+            !isSubmitting &&
+            ((step === 'basic' && basicValid) ||
             (step === 'participants' && participantsValid) ||
-            (step === 'splits' && splitsValid)
+            (step === 'splits' && splitsValid))
               ? 0.97
               : 1
           }}
-          className={`flex-1 px-6 py-3.5 rounded-xl font-semibold text-base ${
-            (step === 'basic' && basicValid) ||
+          className={`flex-1 px-6 py-3.5 rounded-xl font-semibold text-base flex items-center justify-center gap-2 ${
+            !isSubmitting &&
+            ((step === 'basic' && basicValid) ||
             (step === 'participants' && participantsValid) ||
-            (step === 'splits' && splitsValid)
+            (step === 'splits' && splitsValid))
               ? 'bg-ios-blue text-white'
               : 'bg-ios-gray5 dark:bg-gray-700 text-ios-gray2 cursor-not-allowed'
           }`}
         >
-          {step === 'splits' ? 'Create Expense' : 'Next'}
+          {isSubmitting ? (
+            <>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+              />
+              <span>Saving...</span>
+            </>
+          ) : (
+            <span>{step === 'splits' ? 'Create Expense' : 'Next'}</span>
+          )}
         </motion.button>
       </div>
     </form>

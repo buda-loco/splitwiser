@@ -146,7 +146,8 @@ export function TagInput({
               key={tag}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+              exit={{ opacity: 0, scale: 0.8, x: -20 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ios-blue/10 dark:bg-blue-900/30 text-ios-blue dark:text-blue-400 rounded-full text-sm font-medium"
             >
               <span>{tag}</span>
@@ -190,7 +191,7 @@ export function TagInput({
             }
           }}
           placeholder="Add tags (press Enter or comma)"
-          className="w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base"
+          className="w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base transition-all duration-200"
         />
 
         {/* Autocomplete dropdown */}
