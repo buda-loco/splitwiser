@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WifiOff, RefreshCw, Clock, Wifi } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { queueManager } from '@/lib/offline/queue';
 import { syncEngine } from '@/lib/sync/engine';
@@ -45,13 +46,13 @@ export function SyncIndicator() {
   // Determine indicator state
   const getIndicatorState = () => {
     if (!online) {
-      return { color: 'bg-yellow-500', text: 'Offline', icon: '📴' };
+      return { color: 'bg-yellow-500', text: 'Offline', icon: <WifiOff className="w-4 h-4" /> };
     } else if (syncStatus.syncing) {
-      return { color: 'bg-blue-500', text: 'Syncing...', icon: '🔄' };
+      return { color: 'bg-blue-500', text: 'Syncing...', icon: <RefreshCw className="w-4 h-4" /> };
     } else if (syncStatus.pending > 0) {
-      return { color: 'bg-orange-500', text: `${syncStatus.pending} pending`, icon: '⏳' };
+      return { color: 'bg-orange-500', text: `${syncStatus.pending} pending`, icon: <Clock className="w-4 h-4" /> };
     } else {
-      return { color: 'bg-green-500', text: 'Synced', icon: '✓' };
+      return { color: 'bg-green-500', text: 'Synced', icon: <Wifi className="w-4 h-4" /> };
     }
   };
 
@@ -80,7 +81,7 @@ export function SyncIndicator() {
                 flex items-center justify-center gap-2
               `}
             >
-              <span className="animate-spin-slow">{indicator.icon}</span>
+              <span className={syncStatus.syncing ? "animate-spin-slow" : ""}>{indicator.icon}</span>
               <span>{indicator.text}</span>
             </div>
           </div>
