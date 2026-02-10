@@ -36,7 +36,7 @@ export function BottomNav() {
               >
                 <motion.span
                   className="mb-1"
-                  animate={isActive ? { y: [0, -4, 0] } : { y: 0 }}
+                  animate={isActive ? { y: -2 } : { y: 0 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                 >
                   <IconComponent
