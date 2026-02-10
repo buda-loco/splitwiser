@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getExpense, getExpenseParticipants, getExpenseSplits, getExpenseTags, addTagToExpense, removeTagFromExpense } from '@/lib/db/stores';
+import { getExpense, getExpenseParticipants, getExpenseSplits, getExpenseTags, addTagToExpense, removeTagFromExpense, getExpenseVersions, revertExpenseToVersion } from '@/lib/db/stores';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
-import type { OfflineExpense, ExpenseParticipant, ExpenseSplit } from '@/lib/db/types';
+import type { OfflineExpense, ExpenseParticipant, ExpenseSplit, OfflineExpenseVersion } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
-import { ExpenseForm } from './ExpenseForm';
+import { getParticipantDisplayName } from '@/lib/utils/display-name';
+import { ExpenseForm, type ExpenseFormData } from './ExpenseForm';
 
 export function ExpenseDetail({ id }: { id: string }) {
   const router = useRouter();
@@ -15,6 +16,7 @@ export function ExpenseDetail({ id }: { id: string }) {
   const [participants, setParticipants] = useState<ExpenseParticipant[]>([]);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [versions, setVersions] = useState<OfflineExpenseVersion[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -29,18 +31,20 @@ export function ExpenseDetail({ id }: { id: string }) {
       const parts = await getExpenseParticipants(id);
       const spl = await getExpenseSplits(id);
       const tgs = await getExpenseTags(id);
+      const vers = await getExpenseVersions(id);
 
       setExpense(exp);
       setParticipants(parts);
       setSplits(spl);
       setTags(tgs);
+      setVersions(vers);
       setLoading(false);
     }
 
     loadExpense();
   }, [id, router]);
 
-  const handleUpdate = async (formData: any) => {
+  const handleUpdate = async (formData: ExpenseFormData) => {
     try {
       // Update the basic expense fields
       await updateExpense(id, {
@@ -99,6 +103,34 @@ export function ExpenseDetail({ id }: { id: string }) {
     }
   };
 
+  const handleUndo = async () => {
+    const canUndo = versions.length > 1;
+    const previousVersion = versions[1];
+
+    if (!canUndo || !previousVersion) return;
+
+    const confirmed = window.confirm(
+      `Undo last change? This will revert to version ${previousVersion.version_number}.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const userId = 'temp-user-id'; // TODO: Get from auth context
+      await revertExpenseToVersion(id, previousVersion.version_number, userId);
+
+      // Reload the expense data
+      const exp = await getExpense(id);
+      const tgs = await getExpenseTags(id);
+      const vers = await getExpenseVersions(id);
+      if (exp) setExpense(exp);
+      setTags(tgs);
+      setVersions(vers);
+    } catch (error) {
+      console.error('Failed to undo:', error);
+      alert('Failed to undo change. Please try again.');
+    }
+  };
+
   if (loading) {
     return <div className="p-4 text-center text-gray-500">Loading...</div>;
   }
@@ -112,11 +144,7 @@ export function ExpenseDetail({ id }: { id: string }) {
     const participantsWithDetails = participants.map(p => ({
       user_id: p.user_id,
       participant_id: p.participant_id,
-      name: p.user_id
-        ? `User ${p.user_id.slice(0, 8)}`
-        : p.participant_id
-        ? `Participant ${p.participant_id.slice(0, 8)}`
-        : 'Unknown',
+      name: getParticipantDisplayName(p),
       email: null
     }));
 
@@ -151,6 +179,14 @@ export function ExpenseDetail({ id }: { id: string }) {
           ← Back
         </button>
         <div className="flex gap-2">
+          {versions.length > 1 && (
+            <button
+              onClick={handleUndo}
+              className="px-3 py-1.5 text-sm font-medium text-ios-blue bg-ios-blue/10 rounded-lg hover:bg-ios-blue/20 active:scale-95 transition-all"
+            >
+              Undo Last Change
+            </button>
+          )}
           <button
             onClick={() => setIsEditing(true)}
             className="px-4 py-2 text-ios-blue dark:text-blue-400"
@@ -194,20 +230,11 @@ export function ExpenseDetail({ id }: { id: string }) {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
           <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Participants</h2>
           <div className="space-y-2">
-            {participants.map(p => {
-              // Generate display name from ID for now (until we have participant details)
-              const displayName = p.user_id
-                ? `User ${p.user_id.slice(0, 8)}`
-                : p.participant_id
-                ? `Participant ${p.participant_id.slice(0, 8)}`
-                : 'Unknown';
-
-              return (
+            {participants.map(p => (
                 <div key={p.id} className="text-gray-700 dark:text-gray-300">
-                  {displayName}
+                  {getParticipantDisplayName(p)}
                 </div>
-              );
-            })}
+            ))}
           </div>
         </div>
       )}
@@ -217,21 +244,9 @@ export function ExpenseDetail({ id }: { id: string }) {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
           <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Split Details</h2>
           <div className="space-y-2">
-            {splits.map(split => {
-              const participant = participants.find(p =>
-                p.user_id === split.user_id || p.participant_id === split.participant_id
-              );
-
-              // Generate display name
-              const displayName = split.user_id
-                ? `User ${split.user_id.slice(0, 8)}`
-                : split.participant_id
-                ? `Participant ${split.participant_id.slice(0, 8)}`
-                : 'Unknown';
-
-              return (
+            {splits.map(split => (
                 <div key={split.id} className="flex justify-between items-center">
-                  <span className="text-gray-700 dark:text-gray-300">{displayName}</span>
+                  <span className="text-gray-700 dark:text-gray-300">{getParticipantDisplayName(split)}</span>
                   <div className="text-right">
                     <div className="font-medium text-gray-900 dark:text-white">
                       ${split.amount.toFixed(2)}
@@ -244,8 +259,7 @@ export function ExpenseDetail({ id }: { id: string }) {
                     )}
                   </div>
                 </div>
-              );
-            })}
+            ))}
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
