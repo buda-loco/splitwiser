@@ -244,3 +244,11 @@ export type TemplateCreateInput = {
     split_value?: number | null;
   }>;
 };
+
+/**
+ * Offline-specific expense version type with sync tracking
+ */
+export type OfflineExpenseVersion = ExpenseVersion & {
+  sync_status: 'pending' | 'synced' | 'conflict';
+  local_updated_at: string;
+};

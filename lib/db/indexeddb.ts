@@ -8,7 +8,7 @@
 
 // Database configuration
 const DB_NAME = 'splitwiser-offline';
-const DB_VERSION = 3; // Incremented for split_templates and template_participants stores
+const DB_VERSION = 4; // Incremented for expense_versions sync_status index
 
 // Store names matching our schema
 export const STORES = {
@@ -87,6 +87,7 @@ export function initDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORES.EXPENSE_VERSIONS)) {
         const versionsStore = db.createObjectStore(STORES.EXPENSE_VERSIONS, { keyPath: 'id' });
         versionsStore.createIndex('expense_id', 'expense_id', { unique: false });
+        versionsStore.createIndex('sync_status', 'sync_status', { unique: false });
       }
 
       // Create sync_queue store for tracking pending operations
