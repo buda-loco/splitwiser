@@ -34,6 +34,36 @@ const config: Config = {
           gray4: "#D1D1D6",
           gray5: "#E5E5EA",
           gray6: "#F2F2F7",
+          // Dark mode specific grays
+          darkGray: "#1C1C1E",
+          darkGray2: "#2C2C2E",
+          darkGray3: "#3A3A3C",
+          darkGray4: "#48484A",
+          darkGray5: "#636366",
+          darkGray6: "#8E8E93",
+          // Semantic color mappings
+          surface: {
+            DEFAULT: "#FFFFFF",
+            dark: "#1C1C1E",
+          },
+          card: {
+            DEFAULT: "#F2F2F7",
+            dark: "#2C2C2E",
+          },
+          border: {
+            DEFAULT: "#C7C7CC",
+            dark: "#48484A",
+          },
+          text: {
+            primary: {
+              DEFAULT: "#000000",
+              dark: "#FFFFFF",
+            },
+            secondary: {
+              DEFAULT: "#8E8E93",
+              dark: "#8E8E93",
+            },
+          },
         },
       },
       animation: {
