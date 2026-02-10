@@ -97,8 +97,30 @@ export function BalanceView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-ios-gray">Calculating balances...</p>
+      <div className="space-y-4">
+        {/* Loading skeleton with shimmer */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden p-4">
+          {[1, 2, 3].map((i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: i * 0.05 }}
+              className="py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 space-y-2">
+                  {/* Name skeleton */}
+                  <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse" style={{ width: '60%' }} />
+                  {/* Details skeleton */}
+                  <div className="h-3 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse" style={{ width: '40%' }} />
+                </div>
+                {/* Amount skeleton */}
+                <div className="h-4 w-20 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -197,27 +219,38 @@ export function BalanceView() {
 
       {/* Balance entries */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
-        {balances.balances.map((balance, index) => {
-          const balanceType = getBalanceType(balance);
-          const fromName = getParticipantDisplayName(balance.from);
-          const toName = getParticipantDisplayName(balance.to);
+        <AnimatePresence mode="popLayout">
+          {balances.balances.map((balance, index) => {
+            const balanceType = getBalanceType(balance);
+            const fromName = getParticipantDisplayName(balance.from);
+            const toName = getParticipantDisplayName(balance.to);
 
-          // Color classes based on balance type
-          let amountColorClass = 'text-gray-500 dark:text-gray-400'; // Others (gray)
-          if (balanceType === 'owed-to-me') {
-            amountColorClass = 'text-green-600 dark:text-green-500'; // Green for money owed to you
-          } else if (balanceType === 'i-owe') {
-            amountColorClass = 'text-red-600 dark:text-red-500'; // Red for money you owe
-          }
+            // Color classes based on balance type
+            let amountColorClass = 'text-gray-500 dark:text-gray-400'; // Others (gray)
+            if (balanceType === 'owed-to-me') {
+              amountColorClass = 'text-green-600 dark:text-green-500'; // Green for money owed to you
+            } else if (balanceType === 'i-owe') {
+              amountColorClass = 'text-red-600 dark:text-red-500'; // Red for money you owe
+            }
 
-          // Check if this balance has expense details (only in direct view)
-          const hasExpenseDetails = !simplified && balance.expenses && balance.expenses.length > 0;
+            // Check if this balance has expense details (only in direct view)
+            const hasExpenseDetails = !simplified && balance.expenses && balance.expenses.length > 0;
 
-          return (
-            <div
-              key={`${balance.from.user_id || balance.from.participant_id}-${balance.to.user_id || balance.to.participant_id}-${index}`}
-              className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-            >
+            return (
+              <motion.div
+                key={`${balance.from.user_id || balance.from.participant_id}-${balance.to.user_id || balance.to.participant_id}-${index}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                layout="position"
+                transition={{
+                  type: 'spring',
+                  stiffness: 380,
+                  damping: 30,
+                  delay: index < 5 ? index * 0.05 : 0
+                }}
+                className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+              >
               <div className="flex items-center justify-between gap-3">
                 <div
                   className={`flex-1 ${
@@ -313,9 +346,10 @@ export function BalanceView() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
+        </AnimatePresence>
       </div>
 
       {/* Summary */}

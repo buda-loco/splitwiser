@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getExpenses, getExpenseParticipants, getAllTags, getExpenseTags } from '@/lib/db/stores';
 import type { OfflineExpense, ExpenseParticipant } from '@/lib/db/types';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ListRow } from '@/components/ListRow';
 
 export function ExpenseList() {
@@ -75,7 +75,32 @@ export function ExpenseList() {
   }, [filter, selectedTag]);
 
   if (loading) {
-    return <div className="p-4 text-center text-gray-500">Loading...</div>;
+    return (
+      <div className="max-w-md mx-auto">
+        {/* Loading skeleton with shimmer effect */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden p-4">
+          {[1, 2, 3].map((i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 space-y-2">
+                  {/* Title skeleton */}
+                  <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse" style={{ width: '70%' }} />
+                  {/* Subtitle skeleton */}
+                  <div className="h-3 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse" style={{ width: '50%' }} />
+                </div>
+                {/* Amount skeleton */}
+                <div className="h-4 w-16 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -191,35 +216,82 @@ export function ExpenseList() {
       {/* Expense list */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         {expenses.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            className="p-8 text-center text-gray-500"
+          >
             {selectedTag ? `No expenses tagged "${selectedTag}"` : 'No expenses yet. Tap + to create one.'}
-          </div>
+          </motion.div>
         ) : (
-          expenses.map((expense) => {
-            // Build subtitle with category and date
-            const subtitleParts = [];
-            if (expense.category) {
-              subtitleParts.push(expense.category);
-            }
-            subtitleParts.push(new Date(expense.expense_date).toLocaleDateString());
-            const subtitle = subtitleParts.join(' • ');
+          <AnimatePresence mode="popLayout">
+            {expenses.slice(0, 5).map((expense, index) => {
+              // Build subtitle with category and date
+              const subtitleParts = [];
+              if (expense.category) {
+                subtitleParts.push(expense.category);
+              }
+              subtitleParts.push(new Date(expense.expense_date).toLocaleDateString());
+              const subtitle = subtitleParts.join(' • ');
 
-            return (
-              <motion.div
-                key={expense.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <ListRow
-                  title={expense.description}
-                  subtitle={subtitle}
-                  value={`$${expense.amount.toFixed(2)}`}
-                  showChevron={true}
-                  onClick={() => router.push(`/expenses/${expense.id}`)}
-                />
-              </motion.div>
-            );
-          })
+              return (
+                <motion.div
+                  key={expense.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  layout="position"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 380,
+                    damping: 30,
+                    delay: index * 0.05
+                  }}
+                >
+                  <ListRow
+                    title={expense.description}
+                    subtitle={subtitle}
+                    value={`$${expense.amount.toFixed(2)}`}
+                    showChevron={true}
+                    onClick={() => router.push(`/expenses/${expense.id}`)}
+                  />
+                </motion.div>
+              );
+            })}
+            {/* Render remaining items without stagger delay */}
+            {expenses.slice(5).map((expense) => {
+              const subtitleParts = [];
+              if (expense.category) {
+                subtitleParts.push(expense.category);
+              }
+              subtitleParts.push(new Date(expense.expense_date).toLocaleDateString());
+              const subtitle = subtitleParts.join(' • ');
+
+              return (
+                <motion.div
+                  key={expense.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  layout="position"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 380,
+                    damping: 30
+                  }}
+                >
+                  <ListRow
+                    title={expense.description}
+                    subtitle={subtitle}
+                    value={`$${expense.amount.toFixed(2)}`}
+                    showChevron={true}
+                    onClick={() => router.push(`/expenses/${expense.id}`)}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         )}
       </div>
 
