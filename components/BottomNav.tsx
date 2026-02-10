@@ -3,12 +3,13 @@
 import { motion } from 'framer-motion'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { Receipt, Scale, CheckCircle, Settings } from 'lucide-react'
 
 const tabs = [
-  { id: 'expenses', label: 'Expenses', path: '/', icon: '💸' },
-  { id: 'balances', label: 'Balances', path: '/balances', icon: '💰' },
-  { id: 'settlements', label: 'Settlements', path: '/settlements', icon: '✅' },
-  { id: 'settings', label: 'Settings', path: '/settings', icon: '⚙️' },
+  { id: 'expenses', label: 'Expenses', path: '/', icon: Receipt },
+  { id: 'balances', label: 'Balances', path: '/balances', icon: Scale },
+  { id: 'settlements', label: 'Settlements', path: '/settlements', icon: CheckCircle },
+  { id: 'settings', label: 'Settings', path: '/settings', icon: Settings },
 ]
 
 export function BottomNav() {
@@ -19,6 +20,7 @@ export function BottomNav() {
       <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
         {tabs.map((tab) => {
           const isActive = pathname === tab.path
+          const IconComponent = tab.icon
           return (
             <Link
               key={tab.id}
@@ -33,11 +35,15 @@ export function BottomNav() {
                 transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               >
                 <motion.span
-                  className="text-2xl mb-1"
+                  className="mb-1"
                   animate={isActive ? { y: [0, -4, 0] } : { y: 0 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                 >
-                  {tab.icon}
+                  <IconComponent
+                    className={`w-5 h-5 ${
+                      isActive ? 'text-ios-blue' : 'text-ios-gray'
+                    }`}
+                  />
                 </motion.span>
                 <span
                   className={`text-xs ${

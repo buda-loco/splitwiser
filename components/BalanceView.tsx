@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle } from 'lucide-react';
 import { useBalances } from '@/hooks/useBalances';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
@@ -128,7 +129,7 @@ export function BalanceView() {
   if (!balances || balances.balances.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="text-4xl mb-3">✓</div>
+        <CheckCircle className="w-12 h-12 text-green-500 mb-3" />
         <p className="text-ios-gray">
           {selectedTag
             ? `No outstanding balances for #${selectedTag}`
