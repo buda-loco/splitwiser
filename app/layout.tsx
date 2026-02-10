@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { BottomNav } from "@/components/BottomNav";
+import { SwipeNavigation } from "@/components/SwipeNavigation";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import "./globals.css";
 
@@ -33,9 +34,11 @@ export default function RootLayout({
       <body className="antialiased pb-16"> {/* pb-16 for bottom nav height, nav handles safe area */}
         <AuthProvider>
           {/* Content area with bottom padding for fixed nav */}
-          <div className="min-h-screen">
-            {children}
-          </div>
+          <SwipeNavigation>
+            <div className="min-h-screen">
+              {children}
+            </div>
+          </SwipeNavigation>
 
           {/* Bottom navigation */}
           <BottomNav />
