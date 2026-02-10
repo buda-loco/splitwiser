@@ -19,12 +19,55 @@ import type {
   TemplateParticipant,
   TemplateCreateInput,
   SplitTemplate,
+  OfflineExpenseVersion,
+  Expense,
 } from './types';
+
+// =====================================================
+// Version Tracking Helper
+// =====================================================
+
+/**
+ * Record a version change for an expense
+ */
+async function recordExpenseVersion(
+  db: IDBDatabase,
+  expense_id: string,
+  changed_by_user_id: string,
+  change_type: 'created' | 'updated' | 'deleted' | 'restored',
+  before: Partial<Expense> | null,
+  after: Partial<Expense> | null
+): Promise<void> {
+  const tx = db.transaction([STORES.EXPENSES, STORES.EXPENSE_VERSIONS], 'readwrite');
+  const expense = await promisifyRequest(tx.objectStore(STORES.EXPENSES).get(expense_id));
+  if (!expense) return;
+
+  const version: OfflineExpenseVersion = {
+    id: crypto.randomUUID(),
+    expense_id,
+    version_number: expense.version,
+    changed_by_user_id,
+    change_type,
+    changes: {
+      before: before || null,
+      after: after || null
+    },
+    created_at: new Date().toISOString(),
+    sync_status: 'pending',
+    local_updated_at: new Date().toISOString()
+  };
+
+  await promisifyRequest(tx.objectStore(STORES.EXPENSE_VERSIONS).put(version));
+}
 
 // =====================================================
 // Expense Operations
 // =====================================================
 
+/**
+ * Create a new expense in local storage
+ * Generates UUID and tracks as pending sync
+ */
 /**
  * Create a new expense in local storage
  * Generates UUID and tracks as pending sync
@@ -55,12 +98,45 @@ export async function createExpense(
     manual_exchange_rate: expense.manual_exchange_rate ?? null,
   };
 
-  const transaction = db.transaction([STORES.EXPENSES], 'readwrite');
+  const transaction = db.transaction([STORES.EXPENSES, STORES.EXPENSE_VERSIONS], 'readwrite');
   const store = transaction.objectStore(STORES.EXPENSES);
   await promisifyRequest(store.add(newExpense));
 
+  // Record version for creation
+  const version: OfflineExpenseVersion = {
+    id: crypto.randomUUID(),
+    expense_id: id,
+    version_number: 1,
+    changed_by_user_id: expense.created_by_user_id,
+    change_type: 'created',
+    changes: {
+      before: null,
+      after: {
+        amount: expense.amount,
+        currency: expense.currency,
+        description: expense.description,
+        category: expense.category,
+        expense_date: expense.expense_date,
+        paid_by_user_id: expense.paid_by_user_id ?? null,
+      }
+    },
+    created_at: now,
+    sync_status: 'pending',
+    local_updated_at: now
+  };
+  await promisifyRequest(transaction.objectStore(STORES.EXPENSE_VERSIONS).add(version));
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(new Error('Transaction aborted'));
+  });
+
   return id;
 }
+
+
 
 /**
  * Get a single expense by ID
@@ -117,10 +193,11 @@ export async function getExpenses(filters?: {
  */
 export async function updateExpense(
   id: string,
-  updates: Partial<OfflineExpense>
+  updates: Partial<OfflineExpense>,
+  userId?: string
 ): Promise<void> {
   const db = await getDatabase();
-  const transaction = db.transaction([STORES.EXPENSES], 'readwrite');
+  const transaction = db.transaction([STORES.EXPENSES, STORES.EXPENSE_VERSIONS], 'readwrite');
   const store = transaction.objectStore(STORES.EXPENSES);
 
   const existing = await promisifyRequest(store.get(id));
@@ -128,25 +205,198 @@ export async function updateExpense(
     throw new Error(`Expense ${id} not found`);
   }
 
+  // Capture before state (only relevant fields)
+  const before: Partial<Expense> = {
+    amount: existing.amount,
+    currency: existing.currency,
+    description: existing.description,
+    category: existing.category,
+    expense_date: existing.expense_date,
+    paid_by_user_id: existing.paid_by_user_id,
+  };
+
   const updated: OfflineExpense = {
     ...existing,
     ...updates,
     id, // Ensure id cannot be changed
+    version: existing.version + 1,
     updated_at: new Date().toISOString(),
     local_updated_at: new Date().toISOString(),
     sync_status: 'pending',
   };
 
   await promisifyRequest(store.put(updated));
+
+  // Capture after state (only changed fields)
+  const after: Partial<Expense> = {
+    amount: updated.amount,
+    currency: updated.currency,
+    description: updated.description,
+    category: updated.category,
+    expense_date: updated.expense_date,
+    paid_by_user_id: updated.paid_by_user_id,
+  };
+
+  // Record version (only if userId provided)
+  if (!userId) {
+    // Wait for transaction to complete
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(new Error('Transaction aborted'));
+    });
+    return;
+  }
+  const version: OfflineExpenseVersion = {
+    id: crypto.randomUUID(),
+    expense_id: id,
+    version_number: updated.version,
+    changed_by_user_id: userId,
+    change_type: 'updated',
+    changes: {
+      before,
+      after
+    },
+    created_at: new Date().toISOString(),
+    sync_status: 'pending',
+    local_updated_at: new Date().toISOString()
+  };
+  await promisifyRequest(transaction.objectStore(STORES.EXPENSE_VERSIONS).add(version));
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(new Error('Transaction aborted'));
+  });
 }
 
 /**
  * Soft delete an expense
  */
-export async function deleteExpense(id: string): Promise<void> {
-  await updateExpense(id, {
+export async function deleteExpense(id: string, userId?: string): Promise<void> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.EXPENSES, STORES.EXPENSE_VERSIONS], 'readwrite');
+  const store = transaction.objectStore(STORES.EXPENSES);
+
+  const existing = await promisifyRequest(store.get(id));
+  if (!existing) {
+    throw new Error(`Expense ${id} not found`);
+  }
+
+  // Capture before state
+  const before: Partial<Expense> = {
+    amount: existing.amount,
+    currency: existing.currency,
+    description: existing.description,
+    category: existing.category,
+    expense_date: existing.expense_date,
+    paid_by_user_id: existing.paid_by_user_id,
+    is_deleted: existing.is_deleted,
+    deleted_at: existing.deleted_at,
+  };
+
+  const updated: OfflineExpense = {
+    ...existing,
     is_deleted: true,
     deleted_at: new Date().toISOString(),
+    version: existing.version + 1,
+    updated_at: new Date().toISOString(),
+    local_updated_at: new Date().toISOString(),
+    sync_status: 'pending',
+  };
+
+  await promisifyRequest(store.put(updated));
+
+  // Record version (only if userId provided)
+  if (!userId) {
+    // Wait for transaction to complete
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(new Error('Transaction aborted'));
+    });
+    return;
+  }
+  const version: OfflineExpenseVersion = {
+    id: crypto.randomUUID(),
+    expense_id: id,
+    version_number: updated.version,
+    changed_by_user_id: userId,
+    change_type: 'deleted',
+    changes: {
+      before,
+      after: {
+        is_deleted: true,
+        deleted_at: updated.deleted_at
+      }
+    },
+    created_at: new Date().toISOString(),
+    sync_status: 'pending',
+    local_updated_at: new Date().toISOString()
+  };
+  await promisifyRequest(transaction.objectStore(STORES.EXPENSE_VERSIONS).add(version));
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(new Error('Transaction aborted'));
+  });
+}
+
+/**
+ * Restore a deleted expense
+ */
+export async function restoreExpense(id: string, userId?: string): Promise<void> {
+  const db = await getDatabase();
+  const tx = db.transaction([STORES.EXPENSES, STORES.EXPENSE_VERSIONS], 'readwrite');
+
+  const expense = await promisifyRequest(tx.objectStore(STORES.EXPENSES).get(id));
+  if (!expense || !expense.is_deleted) return;
+
+  const before = { is_deleted: true, deleted_at: expense.deleted_at };
+  
+  expense.is_deleted = false;
+  expense.deleted_at = null;
+  expense.version += 1;
+  expense.updated_at = new Date().toISOString();
+  expense.sync_status = 'pending';
+  expense.local_updated_at = new Date().toISOString();
+
+  await promisifyRequest(tx.objectStore(STORES.EXPENSES).put(expense));
+
+  // Record version (only if userId provided)
+  if (!userId) {
+    // Wait for transaction to complete
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(new Error('Transaction aborted'));
+    });
+    return;
+  }
+  const version: OfflineExpenseVersion = {
+    id: crypto.randomUUID(),
+    expense_id: id,
+    version_number: expense.version,
+    changed_by_user_id: userId,
+    change_type: 'restored',
+    changes: {
+      before,
+      after: { is_deleted: false }
+    },
+    created_at: new Date().toISOString(),
+    sync_status: 'pending',
+    local_updated_at: new Date().toISOString()
+  };
+  await promisifyRequest(tx.objectStore(STORES.EXPENSE_VERSIONS).add(version));
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(new Error('Transaction aborted'));
   });
 }
 
@@ -535,6 +785,43 @@ export async function deleteSettlement(id: string): Promise<boolean> {
 }
 
 // =====================================================
+// Version History Operations
+// =====================================================
+
+/**
+ * Get all versions for an expense (sorted by version_number desc)
+ */
+export async function getExpenseVersions(expense_id: string): Promise<OfflineExpenseVersion[]> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.EXPENSE_VERSIONS], 'readonly');
+  const store = transaction.objectStore(STORES.EXPENSE_VERSIONS);
+  const index = store.index('expense_id');
+  const versions = await promisifyRequest(index.getAll(expense_id));
+  return versions.sort((a, b) => b.version_number - a.version_number);
+}
+
+/**
+ * Get specific version by version_number
+ */
+export async function getExpenseVersion(expense_id: string, version_number: number): Promise<OfflineExpenseVersion | null> {
+  const versions = await getExpenseVersions(expense_id);
+  return versions.find(v => v.version_number === version_number) || null;
+}
+
+/**
+ * Get all recent changes (for activity feed - limit to last 100)
+ */
+export async function getRecentExpenseChanges(limit: number = 100): Promise<OfflineExpenseVersion[]> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.EXPENSE_VERSIONS], 'readonly');
+  const store = transaction.objectStore(STORES.EXPENSE_VERSIONS);
+  const allVersions = await promisifyRequest(store.getAll());
+  return allVersions
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
+}
+
+// =====================================================
 // Sync Queue Operations
 // =====================================================
 
@@ -660,7 +947,7 @@ export async function createTemplate(template: TemplateCreateInput): Promise<Off
 /**
  * Get all templates for user
  */
-export async function getTemplatesByUser(userId: string): Promise<OfflineSplitTemplate[]> {
+export async function getTemplatesByUser(userId?: string): Promise<OfflineSplitTemplate[]> {
   const db = await getDatabase();
   const transaction = db.transaction([STORES.SPLIT_TEMPLATES], 'readonly');
   const store = transaction.objectStore(STORES.SPLIT_TEMPLATES);
