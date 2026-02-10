@@ -4,6 +4,7 @@ import { TemplateForm, type TemplateFormData } from '@/components/TemplateForm';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { AlertCircle } from 'lucide-react';
 import { createTemplate } from '@/lib/db/stores';
 import type { TemplateCreateInput } from '@/lib/db/types';
 import { useState } from 'react';
@@ -108,7 +109,7 @@ export default function NewTemplatePage() {
             className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-ios-red rounded-xl"
           >
             <div className="flex items-start gap-3">
-              <span className="text-xl">⚠️</span>
+              <AlertCircle className="w-5 h-5 text-ios-red flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <h3 className="font-semibold text-ios-red mb-1">
                   Failed to create template

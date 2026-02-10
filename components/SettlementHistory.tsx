@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Wallet } from 'lucide-react';
 import { useSettlements } from '@/hooks/useSettlements';
 import type { Settlement } from '@/lib/db/types';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
@@ -88,9 +89,11 @@ export function SettlementHistory() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
     setDeleting(true);
+    setDeleteError(null);
     try {
       const success = await deleteSettlement(id);
       if (success) {
@@ -101,11 +104,11 @@ export function SettlementHistory() {
         setShowDeleteConfirm(null);
         await refetch();
       } else {
-        alert('Failed to delete settlement');
+        setDeleteError('Failed to delete settlement');
       }
     } catch (error) {
       console.error('Error deleting settlement:', error);
-      alert('Failed to delete settlement');
+      setDeleteError('Failed to delete settlement');
     } finally {
       setDeleting(false);
     }
@@ -145,7 +148,7 @@ export function SettlementHistory() {
   if (settlements.length === 0) {
     return (
       <div className="max-w-md mx-auto flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
-        <div className="text-6xl mb-4">💸</div>
+        <Wallet className="w-16 h-16 mb-4 text-gray-400 dark:text-gray-600" />
         <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
           No settlements yet
         </h3>
@@ -334,15 +337,20 @@ export function SettlementHistory() {
                 {/* Message */}
                 <div className="px-6 pb-6">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    This will remove this{' '}
-                    {settlements.find((s) => s.id === showDeleteConfirm)
-                      ? `${settlements.find((s) => s.id === showDeleteConfirm)!.currency} ${settlements
-                          .find((s) => s.id === showDeleteConfirm)!
-                          .amount.toFixed(2)}`
-                      : ''}{' '}
-                    settlement. This cannot be undone.
+                    {(() => {
+                      const s = settlements.find((s) => s.id === showDeleteConfirm);
+                      return s
+                        ? `This will remove this ${s.currency} ${s.amount.toFixed(2)} settlement. This cannot be undone.`
+                        : 'This will remove this settlement. This cannot be undone.';
+                    })()}
                   </p>
                 </div>
+
+                {deleteError && (
+                  <div className="px-6 pb-4">
+                    <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 divide-x divide-gray-200 dark:divide-gray-700">

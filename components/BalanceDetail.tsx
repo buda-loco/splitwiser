@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { Info } from 'lucide-react';
 import type { BalanceEntry } from '@/lib/balances/types';
 import type { Settlement } from '@/lib/db/types';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
@@ -124,7 +125,7 @@ export function BalanceDetail({ balance, isOpen, onClose }: BalanceDetailProps) 
               {!balance.expenses || balance.expenses.length === 0 ? (
                 // Empty state for simplified view
                 <div className="px-4 py-12 text-center">
-                  <div className="text-4xl mb-3">ℹ️</div>
+                  <Info className="w-12 h-12 mx-auto mb-3 text-blue-500" />
                   <p className="text-gray-600 dark:text-gray-400 mb-2">
                     Expense breakdown only available in direct view
                   </p>
