@@ -34,6 +34,8 @@ export function TagManagement() {
     }
   }
 
+  const [error, setError] = useState<string | null>(null);
+
   // Rename tag handler
   async function handleRename(oldTag: string) {
     if (!newTagName || newTagName === oldTag) {
@@ -42,10 +44,16 @@ export function TagManagement() {
       return;
     }
 
-    await renameTag(oldTag, newTagName);
-    setEditingTag(null);
-    setNewTagName('');
-    await loadTags();
+    try {
+      setError(null);
+      await renameTag(oldTag, newTagName);
+      setEditingTag(null);
+      setNewTagName('');
+      await loadTags();
+    } catch (err) {
+      console.error('Failed to rename tag:', err);
+      setError('Failed to rename tag. Please try again.');
+    }
   }
 
   // Merge tags handler
@@ -55,9 +63,15 @@ export function TagManagement() {
     const tagArray = Array.from(selectedTags);
     const [target, ...sources] = tagArray;
 
-    await mergeTags(sources, target);
-    setSelectedTags(new Set());
-    await loadTags();
+    try {
+      setError(null);
+      await mergeTags(sources, target);
+      setSelectedTags(new Set());
+      await loadTags();
+    } catch (err) {
+      console.error('Failed to merge tags:', err);
+      setError('Failed to merge tags. Please try again.');
+    }
   }
 
   // Delete tag handler
@@ -67,8 +81,14 @@ export function TagManagement() {
       return;
     }
 
-    await deleteTag(tag);
-    await loadTags();
+    try {
+      setError(null);
+      await deleteTag(tag);
+      await loadTags();
+    } catch (err) {
+      console.error('Failed to delete tag:', err);
+      setError('Failed to delete tag. Please try again.');
+    }
   }
 
   // Toggle tag selection
@@ -112,6 +132,13 @@ export function TagManagement() {
 
   return (
     <div className="pb-safe">
+      {/* Error display */}
+      {error && (
+        <div className="mx-4 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-800 dark:text-red-200" role="alert">
+          {error}
+        </div>
+      )}
+
       {/* Merge button - fixed at top when 2+ tags selected */}
       {selectedTags.size >= 2 && (
         <div className="sticky top-[57px] z-10 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 px-4 py-3">

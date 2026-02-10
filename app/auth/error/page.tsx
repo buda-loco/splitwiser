@@ -1,55 +1,17 @@
 export default function AuthErrorPage() {
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '400px',
-          textAlign: 'center',
-        }}
-      >
-        <h1
-          style={{
-            fontSize: '28px',
-            fontWeight: '600',
-            marginBottom: '8px',
-            color: '#991B1B',
-          }}
-        >
+    <div className="min-h-screen flex items-center justify-center px-5 pt-safe-top pb-safe-bottom bg-white dark:bg-black">
+      <div className="w-full max-w-[400px] text-center">
+        <h1 className="text-[28px] font-semibold mb-2 text-red-800 dark:text-red-400">
           Authentication Error
         </h1>
-        <p
-          style={{
-            color: '#6B7280',
-            marginBottom: '32px',
-          }}
-        >
+        <p className="text-gray-500 dark:text-gray-400 mb-8">
           Something went wrong with the authentication process. Please try logging in again.
         </p>
 
         <a
           href="/auth/login"
-          style={{
-            display: 'inline-block',
-            padding: '14px 32px',
-            fontSize: '16px',
-            fontWeight: '600',
-            color: 'white',
-            backgroundColor: '#3B82F6',
-            borderRadius: '12px',
-            textDecoration: 'none',
-          }}
+          className="inline-block px-8 py-3.5 text-base font-semibold text-white bg-ios-blue rounded-xl no-underline"
         >
           Return to Login
         </a>

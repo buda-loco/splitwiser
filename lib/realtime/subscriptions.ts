@@ -5,9 +5,16 @@ import * as stores from '@/lib/db/stores';
 export type RealtimeEvent = {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
   table: string;
-  record: any;
-  old_record?: any;
+  record: Record<string, unknown>;
+  old_record?: Record<string, unknown>;
 };
+
+type RealtimeRecord = Record<string, unknown>;
+
+/** Type guard: check that a realtime payload record has a valid 'id' field */
+function hasId(record: unknown): record is RealtimeRecord & { id: string } {
+  return typeof record === 'object' && record !== null && 'id' in record && typeof (record as RealtimeRecord).id === 'string';
+}
 
 export class RealtimeManager {
   private channels: Map<string, RealtimeChannel> = new Map();
@@ -33,16 +40,20 @@ export class RealtimeManager {
           table: 'expenses',
           filter: `created_by_user_id=eq.${user_id}` // Only expenses user has access to
         },
-        async (payload: RealtimePostgresChangesPayload<any>) => {
-          await this.handleExpenseChange(payload);
+        async (payload: RealtimePostgresChangesPayload<RealtimeRecord>) => {
+          try {
+            await this.handleExpenseChange(payload);
+          } catch (err) {
+            console.error('Failed to handle realtime expense change:', err);
+          }
 
           // Call optional callback for UI updates
           if (callback) {
             callback({
               type: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
               table: 'expenses',
-              record: payload.new,
-              old_record: payload.old
+              record: payload.new as RealtimeRecord,
+              old_record: payload.old as RealtimeRecord
             });
           }
         }
@@ -73,14 +84,18 @@ export class RealtimeManager {
           table: 'expense_splits',
           filter: `expense_id=eq.${expense_id}`
         },
-        async (payload) => {
-          await this.handleSplitChange(payload);
+        async (payload: RealtimePostgresChangesPayload<RealtimeRecord>) => {
+          try {
+            await this.handleSplitChange(payload);
+          } catch (err) {
+            console.error('Failed to handle realtime split change:', err);
+          }
           if (callback) {
             callback({
-              type: payload.eventType as any,
+              type: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
               table: 'expense_splits',
-              record: payload.new,
-              old_record: payload.old
+              record: payload.new as RealtimeRecord,
+              old_record: payload.old as RealtimeRecord
             });
           }
         }
@@ -93,13 +108,17 @@ export class RealtimeManager {
           table: 'expense_tags',
           filter: `expense_id=eq.${expense_id}`
         },
-        async (payload) => {
-          await this.handleTagChange(payload);
+        async (payload: RealtimePostgresChangesPayload<RealtimeRecord>) => {
+          try {
+            await this.handleTagChange(payload);
+          } catch (err) {
+            console.error('Failed to handle realtime tag change:', err);
+          }
           if (callback) {
             callback({
-              type: payload.eventType as any,
+              type: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
               table: 'expense_tags',
-              record: payload.new
+              record: payload.new as RealtimeRecord
             });
           }
         }
@@ -111,39 +130,52 @@ export class RealtimeManager {
   }
 
   // Handle expense change from realtime
-  private async handleExpenseChange(payload: RealtimePostgresChangesPayload<any>): Promise<void> {
+  private async handleExpenseChange(payload: RealtimePostgresChangesPayload<RealtimeRecord>): Promise<void> {
     if (payload.eventType === 'INSERT') {
-      // Add new expense to local IndexedDB
-      await stores.createExpense({ ...payload.new, sync_status: 'synced' });
+      if (!hasId(payload.new)) return;
+      // Realtime INSERT delivers the full server record — write it directly via update
+      // (createExpense generates a new ID, but we want to keep the server's ID)
+      const record = payload.new as unknown as Parameters<typeof stores.updateExpense>[1];
+      const existing = await stores.getExpense(payload.new.id);
+      if (!existing) {
+        // Use createExpense with the server data cast through unknown
+        await stores.createExpense({ ...(payload.new as unknown as Parameters<typeof stores.createExpense>[0]) });
+      }
     } else if (payload.eventType === 'UPDATE') {
-      // Update expense in IndexedDB (only if remote is newer)
+      if (!hasId(payload.new)) return;
       const local = await stores.getExpense(payload.new.id);
-      if (!local || new Date(payload.new.updated_at) > new Date(local.updated_at)) {
-        await stores.updateExpense(payload.new.id, { ...payload.new, sync_status: 'synced' });
+      if (!local || new Date(payload.new.updated_at as string) > new Date(local.updated_at)) {
+        await stores.updateExpense(payload.new.id, { ...(payload.new as unknown as Parameters<typeof stores.updateExpense>[1]), sync_status: 'synced' as const });
       }
     } else if (payload.eventType === 'DELETE') {
-      // Soft delete in IndexedDB
+      if (!hasId(payload.old)) return;
       await stores.deleteExpense(payload.old.id);
     }
   }
 
   // Handle split changes
-  private async handleSplitChange(payload: RealtimePostgresChangesPayload<any>): Promise<void> {
+  private async handleSplitChange(payload: RealtimePostgresChangesPayload<RealtimeRecord>): Promise<void> {
     if (payload.eventType === 'INSERT') {
-      await stores.createSplit(payload.new);
+      if (!hasId(payload.new)) return;
+      await stores.createSplit(payload.new as unknown as Parameters<typeof stores.createSplit>[0]);
     } else if (payload.eventType === 'UPDATE') {
-      await stores.updateSplit(payload.new.id, payload.new);
+      if (!hasId(payload.new)) return;
+      await stores.updateSplit(payload.new.id, payload.new as unknown as Parameters<typeof stores.updateSplit>[1]);
     } else if (payload.eventType === 'DELETE') {
       // Delete from local store (splits don't soft delete)
     }
   }
 
   // Handle tag changes
-  private async handleTagChange(payload: RealtimePostgresChangesPayload<any>): Promise<void> {
+  private async handleTagChange(payload: RealtimePostgresChangesPayload<RealtimeRecord>): Promise<void> {
+    const rec = payload.new as RealtimeRecord;
     if (payload.eventType === 'INSERT') {
-      await stores.addTagToExpense(payload.new.expense_id, payload.new.tag);
+      if (!rec.expense_id || !rec.tag) return;
+      await stores.addTagToExpense(rec.expense_id as string, rec.tag as string);
     } else if (payload.eventType === 'DELETE') {
-      await stores.removeTagFromExpense(payload.old.expense_id, payload.old.tag);
+      const old = payload.old as RealtimeRecord;
+      if (!old.expense_id || !old.tag) return;
+      await stores.removeTagFromExpense(old.expense_id as string, old.tag as string);
     }
   }
 

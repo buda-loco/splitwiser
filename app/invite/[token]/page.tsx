@@ -24,54 +24,13 @@ export default async function InvitePage({ params }: InvitePageProps) {
   // Invalid or expired token
   if (!invite || !invite.isValid) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          backgroundColor: '#f5f5f7',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: '400px',
-            width: '100%',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '32px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '48px',
-              marginBottom: '16px',
-            }}
-          >
-            ⚠️
-          </div>
-          <h1
-            style={{
-              fontSize: '24px',
-              fontWeight: '600',
-              marginBottom: '12px',
-              color: '#1d1d1f',
-            }}
-          >
+      <div className="min-h-screen flex flex-col items-center justify-center px-5 pt-safe-top pb-safe-bottom bg-gray-50 dark:bg-black">
+        <div className="max-w-[400px] w-full bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm text-center">
+          <div className="text-5xl mb-4">&#9888;&#65039;</div>
+          <h1 className="text-2xl font-semibold mb-3 text-gray-900 dark:text-white">
             Invalid Invite Link
           </h1>
-          <p
-            style={{
-              fontSize: '16px',
-              color: '#6e6e73',
-              lineHeight: '1.5',
-            }}
-          >
+          <p className="text-base text-gray-500 dark:text-gray-400 leading-relaxed">
             This invite link has expired or is invalid. Please ask the person who invited you to
             send a new link.
           </p>
@@ -83,184 +42,59 @@ export default async function InvitePage({ params }: InvitePageProps) {
   const { participant } = invite;
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        paddingTop: 'max(20px, env(safe-area-inset-top))',
-        paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        backgroundColor: '#f5f5f7',
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '400px',
-          width: '100%',
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '32px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '48px',
-            textAlign: 'center',
-            marginBottom: '16px',
-          }}
-        >
-          👋
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 pt-safe-top pb-safe-bottom bg-gray-50 dark:bg-black">
+      <div className="max-w-[400px] w-full bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm">
+        <div className="text-5xl text-center mb-4">&#128075;</div>
 
-        <h1
-          style={{
-            fontSize: '28px',
-            fontWeight: '600',
-            marginBottom: '8px',
-            color: '#1d1d1f',
-            textAlign: 'center',
-          }}
-        >
+        <h1 className="text-[28px] font-semibold mb-2 text-gray-900 dark:text-white text-center">
           Hi, {participant.name}!
         </h1>
 
-        <p
-          style={{
-            fontSize: '16px',
-            color: '#6e6e73',
-            lineHeight: '1.5',
-            textAlign: 'center',
-            marginBottom: '24px',
-          }}
-        >
+        <p className="text-base text-gray-500 dark:text-gray-400 leading-relaxed text-center mb-6">
           You&apos;ve been added to shared expenses by a friend. Create an account to view and
           settle your balances.
         </p>
 
         {participant.email && (
-          <div
-            style={{
-              padding: '16px',
-              backgroundColor: '#f5f5f7',
-              borderRadius: '8px',
-              marginBottom: '24px',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '12px',
-                color: '#6e6e73',
-                marginBottom: '4px',
-              }}
-            >
+          <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg mb-6">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
               Your contact info:
             </div>
-            <div
-              style={{
-                fontSize: '14px',
-                color: '#1d1d1f',
-                fontWeight: '500',
-              }}
-            >
+            <div className="text-sm font-medium text-gray-900 dark:text-white">
               {participant.email}
             </div>
           </div>
         )}
 
-        <div
-          style={{
-            padding: '16px',
-            backgroundColor: '#f0f9ff',
-            borderRadius: '8px',
-            marginBottom: '24px',
-            border: '1px solid #0071e3',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '12px',
-              color: '#6e6e73',
-              marginBottom: '4px',
-            }}
-          >
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg mb-6 border border-ios-blue">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
             Your current balance:
           </div>
-          <div
-            style={{
-              fontSize: '20px',
-              color: '#1d1d1f',
-              fontWeight: '600',
-            }}
-          >
+          <div className="text-xl font-semibold text-gray-900 dark:text-white">
             Coming soon
           </div>
-          <div
-            style={{
-              fontSize: '12px',
-              color: '#6e6e73',
-              marginTop: '4px',
-            }}
-          >
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Balance calculation will be available in Phase 6
           </div>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
+        <div className="flex flex-col gap-3">
           <Link
             href={`/auth/claim?participant=${participant.id}&token=${token}`}
-            style={{
-              display: 'block',
-              padding: '14px',
-              backgroundColor: '#0071e3',
-              color: 'white',
-              textAlign: 'center',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontWeight: '500',
-              fontSize: '16px',
-            }}
+            className="block py-3.5 bg-ios-blue text-white text-center rounded-xl no-underline font-medium text-base"
           >
             Create Account to Claim
           </Link>
 
           <button
-            style={{
-              padding: '14px',
-              backgroundColor: '#f5f5f7',
-              color: '#1d1d1f',
-              textAlign: 'center',
-              borderRadius: '8px',
-              border: 'none',
-              fontWeight: '500',
-              fontSize: '16px',
-              cursor: 'pointer',
-            }}
+            className="py-3.5 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-center rounded-xl border-none font-medium text-base cursor-not-allowed opacity-60"
             disabled
           >
             View as Guest (Coming in Phase 6)
           </button>
         </div>
 
-        <p
-          style={{
-            fontSize: '12px',
-            color: '#6e6e73',
-            textAlign: 'center',
-            marginTop: '24px',
-            lineHeight: '1.5',
-          }}
-        >
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-6 leading-relaxed">
           By creating an account, you&apos;ll be able to manage your expenses, view your balance
           history, and settle up with friends.
         </p>

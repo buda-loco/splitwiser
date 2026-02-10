@@ -72,7 +72,7 @@ export function SplitByPercentage({
 
   return (
     <div className="space-y-3">
-      <h3 className="font-medium text-gray-900">Split by Percentage</h3>
+      <h3 className="font-medium text-gray-900 dark:text-white">Split by Percentage</h3>
 
       {/* Percentage inputs */}
       <div className="space-y-2">
@@ -86,7 +86,7 @@ export function SplitByPercentage({
 
           return (
             <div key={key} className="flex items-center gap-3">
-              <span className="flex-1 text-gray-900">{participant.name}</span>
+              <span className="flex-1 text-gray-900 dark:text-white">{participant.name}</span>
 
               <div className="flex items-center gap-2">
                 <input
@@ -97,10 +97,11 @@ export function SplitByPercentage({
                   min="0"
                   max="100"
                   step="0.01"
-                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
+                  aria-label={`Percentage for ${participant.name}`}
+                  className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded text-right"
                 />
-                <span className="text-gray-600">%</span>
-                <span className="w-20 text-right font-medium text-gray-900">
+                <span className="text-gray-600 dark:text-gray-400">%</span>
+                <span className="w-20 text-right font-medium text-gray-900 dark:text-white">
                   ${split?.amount.toFixed(2) || '0.00'}
                 </span>
               </div>
@@ -111,30 +112,30 @@ export function SplitByPercentage({
 
       {/* Validation feedback */}
       {!percentageValid && (
-        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3">
-          <p className="text-sm text-yellow-800">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
             Percentages total {totalPercentage.toFixed(2)}% (should be 100%)
           </p>
         </div>
       )}
 
       {!amountValid && percentageValid && (
-        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3">
-          <p className="text-sm text-yellow-800">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
             Rounding difference: ${Math.abs(totalAmount - amount).toFixed(2)}
           </p>
         </div>
       )}
 
       {/* Total */}
-      <div className="pt-2 border-t border-gray-300">
+      <div className="pt-2 border-t border-gray-300 dark:border-gray-600">
         <div className="flex justify-between">
-          <span className="font-semibold">Total</span>
+          <span className="font-semibold dark:text-white">Total</span>
           <div className="flex gap-4">
-            <span className={percentageValid ? 'text-green-600' : 'text-red-600'}>
+            <span className={percentageValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
               {totalPercentage.toFixed(2)}%
             </span>
-            <span className="font-semibold">${totalAmount.toFixed(2)}</span>
+            <span className="font-semibold dark:text-white">${totalAmount.toFixed(2)}</span>
           </div>
         </div>
       </div>

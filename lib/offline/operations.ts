@@ -171,7 +171,7 @@ export type AnyOperation =
 export function createOperation<T extends Operation['table']>(
   table: T,
   record_id: string,
-  payload: any
+  payload: Record<string, unknown>
 ): AnyOperation {
   return {
     id: crypto.randomUUID(),
@@ -191,8 +191,8 @@ export function createOperation<T extends Operation['table']>(
 export function updateOperation<T extends Operation['table']>(
   table: T,
   record_id: string,
-  payload: any,
-  original_values: any
+  payload: Record<string, unknown>,
+  original_values: Record<string, unknown>
 ): AnyOperation {
   return {
     id: crypto.randomUUID(),

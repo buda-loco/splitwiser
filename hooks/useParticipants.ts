@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getExpenses, getExpenseParticipants } from '@/lib/db/stores';
+import { getParticipantDisplayName } from '@/lib/utils/display-name';
 
 /**
  * Extended participant type with display information
@@ -54,12 +55,10 @@ export function useParticipants() {
 
             const existing = participantMap.get(key);
 
-            // For now, we use the ID as the name since we don't have participant details stored
-            // In a future version with Supabase sync, we'll fetch actual participant names
             const participantWithDetails: ParticipantWithDetails = {
               user_id: p.user_id,
               participant_id: p.participant_id,
-              name: p.user_id ? `User ${p.user_id.slice(0, 8)}` : `Participant ${p.participant_id?.slice(0, 8) || 'Unknown'}`,
+              name: getParticipantDisplayName(p),
               email: null,
             };
 

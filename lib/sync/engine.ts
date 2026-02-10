@@ -28,6 +28,7 @@ export type SyncStatus = {
 export class SyncEngine {
   private syncing = false;
   private lastSyncTime: string | null = null;
+  private lastSyncErrors: string[] = [];
 
   /**
    * Main sync method - processes entire queue
@@ -49,14 +50,26 @@ export class SyncEngine {
       for (const operation of operations) {
         try {
           await this.processOperation(operation, supabase);
-          await queueManager.markSynced(operation.id);
-        } catch (error: any) {
+          try {
+            await queueManager.markSynced(operation.id);
+          } catch (markErr) {
+            // Operation succeeded but marking failed — don't misclassify as failed
+            const msg = markErr instanceof Error ? markErr.message : String(markErr);
+            errors.push(`Operation ${operation.id} synced but marking failed: ${msg}`);
+          }
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err));
           errors.push(`Operation ${operation.id}: ${error.message}`);
-          await queueManager.markFailed(operation.id, error.message);
+          try {
+            await queueManager.markFailed(operation.id, error.message);
+          } catch {
+            // Best-effort: if marking failed also fails, continue processing
+          }
         }
       }
 
       this.lastSyncTime = new Date().toISOString();
+      this.lastSyncErrors = errors;
     } finally {
       this.syncing = false;
     }
@@ -68,7 +81,7 @@ export class SyncEngine {
    * Process single operation
    * Handles create, update, and delete operations with conflict resolution
    */
-  private async processOperation(operation: Operation, supabase: any): Promise<void> {
+  private async processOperation(operation: Operation, supabase: ReturnType<typeof createClient>): Promise<void> {
     const { table, operation_type, record_id } = operation;
     const payload = 'payload' in operation ? operation.payload : undefined;
 
@@ -148,7 +161,7 @@ export class SyncEngine {
    * Update local IndexedDB when remote wins conflict
    * Keeps IndexedDB in sync with Supabase after remote-wins resolution
    */
-  private async updateLocalStore(table: string, record_id: string, record: any): Promise<void> {
+  private async updateLocalStore(table: string, record_id: string, record: Record<string, unknown>): Promise<void> {
     // Import appropriate store function based on table
     // Call updateExpense, updateSplit, etc. from stores.ts
     // This keeps IndexedDB in sync with Supabase after remote-wins resolution
@@ -167,9 +180,22 @@ export class SyncEngine {
   getStatus(): SyncStatus {
     return {
       is_syncing: this.syncing,
-      pending_operations: 0, // Will be populated by queueManager.getQueueSize()
+      pending_operations: 0, // Synchronous fallback; use getStatusAsync() for real count
       last_sync: this.lastSyncTime,
-      sync_errors: []
+      sync_errors: this.lastSyncErrors
+    };
+  }
+
+  /**
+   * Get current sync status with real pending operation count
+   */
+  async getStatusAsync(): Promise<SyncStatus> {
+    const { pending } = await queueManager.getQueueSize();
+    return {
+      is_syncing: this.syncing,
+      pending_operations: pending,
+      last_sync: this.lastSyncTime,
+      sync_errors: this.lastSyncErrors
     };
   }
 

@@ -5,7 +5,7 @@ import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { addParticipantToExpense, createSplit, addTagToExpense } from '@/lib/db/stores';
+import { addParticipantToExpense, createSplit, addTagToExpense, deleteExpense } from '@/lib/db/stores';
 
 /**
  * New Expense Page
@@ -46,35 +46,41 @@ export default function NewExpensePage() {
       // Create expense optimistically (appears instantly in IndexedDB)
       const expenseId = await createExpense(expenseData);
 
-      // Add participants to the expense
-      for (const participant of formData.participants) {
-        await addParticipantToExpense(
-          expenseId,
-          participant.user_id || undefined,
-          participant.participant_id || undefined
-        );
-      }
-
-      // Add splits to the expense
-      for (const split of formData.splits) {
-        await createSplit({
-          ...split,
-          expense_id: expenseId
-        });
-      }
-
-      // Add tags to the expense
-      for (const tag of formData.tags) {
-        try {
-          await addTagToExpense(expenseId, tag);
-        } catch (err) {
-          // Log but don't block submission on tag errors
-          console.error(`Failed to add tag "${tag}":`, err);
+      try {
+        // Add participants to the expense
+        for (const participant of formData.participants) {
+          await addParticipantToExpense(
+            expenseId,
+            participant.user_id || undefined,
+            participant.participant_id || undefined
+          );
         }
+
+        // Add splits to the expense
+        for (const split of formData.splits) {
+          await createSplit({
+            ...split,
+            expense_id: expenseId
+          });
+        }
+
+        // Add tags to the expense
+        for (const tag of formData.tags) {
+          try {
+            await addTagToExpense(expenseId, tag);
+          } catch (err) {
+            // Log but don't block submission on tag errors
+            console.error(`Failed to add tag "${tag}":`, err);
+          }
+        }
+      } catch (detailErr) {
+        // If participants/splits fail, clean up the orphaned expense
+        console.error('Failed to add expense details, rolling back:', detailErr);
+        await deleteExpense(expenseId);
+        throw detailErr;
       }
 
       // Navigate to expense list
-      // Note: Will navigate to expense detail page once it's implemented
       router.push('/');
     } catch (err) {
       // Error is already captured by useOptimisticMutation

@@ -15,6 +15,9 @@ export class NetworkStatusManager {
 
   private listeners: Set<(status: NetworkStatus) => void> = new Set();
   private syncOnReconnect = true;
+  private onlineHandler: (() => void) | null = null;
+  private offlineHandler: (() => void) | null = null;
+  private connectionHandler: (() => void) | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -25,7 +28,7 @@ export class NetworkStatusManager {
 
   // Initialize online/offline event listeners
   private initListeners(): void {
-    window.addEventListener('online', () => {
+    this.onlineHandler = () => {
       this.status.online = true;
       this.notifyListeners();
 
@@ -33,20 +36,38 @@ export class NetworkStatusManager {
       if (this.syncOnReconnect) {
         this.triggerSync();
       }
-    });
+    };
 
-    window.addEventListener('offline', () => {
+    this.offlineHandler = () => {
       this.status.online = false;
       this.notifyListeners();
-    });
+    };
+
+    window.addEventListener('online', this.onlineHandler);
+    window.addEventListener('offline', this.offlineHandler);
 
     // Listen to connection changes (if available)
     if ('connection' in navigator) {
       const connection = (navigator as any).connection;
-      connection.addEventListener('change', () => {
+      this.connectionHandler = () => {
         this.detectConnectionType();
-      });
+      };
+      connection.addEventListener('change', this.connectionHandler);
     }
+  }
+
+  // Remove all event listeners
+  destroy(): void {
+    if (this.onlineHandler) {
+      window.removeEventListener('online', this.onlineHandler);
+    }
+    if (this.offlineHandler) {
+      window.removeEventListener('offline', this.offlineHandler);
+    }
+    if (this.connectionHandler && 'connection' in navigator) {
+      (navigator as any).connection.removeEventListener('change', this.connectionHandler);
+    }
+    this.listeners.clear();
   }
 
   // Detect connection type using Network Information API

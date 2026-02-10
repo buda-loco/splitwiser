@@ -33,7 +33,9 @@ export function TagInput({
 
   // Load all tags on mount
   useEffect(() => {
-    getAllTags().then(setAllTags);
+    getAllTags().then(setAllTags).catch((err) => {
+      console.error('Failed to load tags:', err);
+    });
   }, []);
 
   // Handle input changes with debounced autocomplete

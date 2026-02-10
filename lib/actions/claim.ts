@@ -5,11 +5,15 @@ import type { Participant } from '@/lib/db/types';
 import { claimParticipant } from './participant';
 import { upsertProfile } from './user';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Get all claimable participants for a given email
  * Returns participants that have not been claimed yet (claimed_by_user_id IS NULL)
  */
 export async function getClaimableParticipants(email: string): Promise<Participant[]> {
+  if (!email || !email.includes('@')) return [];
+
   try {
     const supabase = await createClient();
 
@@ -41,6 +45,10 @@ export async function getClaimableParticipants(email: string): Promise<Participa
 export async function claimParticipantAccount(
   participantId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (!participantId || !UUID_RE.test(participantId)) {
+    return { success: false, error: 'Invalid participant ID' };
+  }
+
   try {
     const supabase = await createClient();
 

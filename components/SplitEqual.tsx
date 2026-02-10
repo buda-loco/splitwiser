@@ -47,12 +47,12 @@ export function SplitEqual({
 
   return (
     <div className="space-y-3">
-      <h3 className="font-medium text-gray-900">Split Equally</h3>
+      <h3 className="font-medium text-gray-900 dark:text-white">Split Equally</h3>
 
       {/* Show per-person amount */}
       {participants.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-sm text-blue-900">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+          <p className="text-sm text-blue-900 dark:text-blue-200">
             ${(amount / participants.length).toFixed(2)} per person
           </p>
         </div>
@@ -65,10 +65,10 @@ export function SplitEqual({
           return (
             <div
               key={split.id}
-              className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0"
+              className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 last:border-0"
             >
-              <span className="text-gray-900">{participant.name}</span>
-              <span className="font-medium text-gray-900">
+              <span className="text-gray-900 dark:text-white">{participant.name}</span>
+              <span className="font-medium text-gray-900 dark:text-white">
                 ${split.amount.toFixed(2)}
               </span>
             </div>
@@ -78,13 +78,13 @@ export function SplitEqual({
 
       {/* Total verification (should always match) */}
       {!matches && (
-        <div className="text-xs text-red-600">
+        <div className="text-xs text-red-600 dark:text-red-400" role="alert">
           Warning: Total ${total.toFixed(2)} does not match amount ${amount.toFixed(2)}
         </div>
       )}
 
       {/* Summary */}
-      <div className="pt-2 border-t border-gray-300">
+      <div className="pt-2 border-t border-gray-300 dark:border-gray-600">
         <div className="flex justify-between font-semibold">
           <span>Total</span>
           <span>${total.toFixed(2)}</span>

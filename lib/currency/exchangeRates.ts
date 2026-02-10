@@ -53,6 +53,11 @@ export async function getExchangeRate(
     const response = await fetch(
       `https://api.exchangerate-api.com/v4/latest/${from}`
     );
+
+    if (!response.ok) {
+      throw new Error(`Exchange rate API returned ${response.status}`);
+    }
+
     const data = await response.json();
 
     // Cache for 24 hours

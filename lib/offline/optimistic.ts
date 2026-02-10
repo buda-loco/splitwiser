@@ -9,6 +9,7 @@
 import { queueManager } from './queue';
 import { createOperation, updateOperation, deleteOperation } from './operations';
 import * as stores from '@/lib/db/stores';
+import type { OfflineExpense, ExpenseCreateInput } from '@/lib/db/types';
 
 export type OptimisticUpdate<T> = {
   id: string; // UUID for this optimistic update
@@ -19,33 +20,29 @@ export type OptimisticUpdate<T> = {
 };
 
 export class OptimisticUpdateManager {
-  private updates = new Map<string, OptimisticUpdate<any>>();
+  private updates = new Map<string, OptimisticUpdate<Record<string, unknown>>>();
 
   /**
    * Create expense optimistically
    * Immediately adds to IndexedDB and queues for sync
    */
-  async createExpense(expense: any): Promise<string> {
-    // 1. Generate ID for the expense
-    const expense_id = crypto.randomUUID();
-    const expense_with_id = { ...expense, id: expense_id, sync_status: 'pending' };
+  async createExpense(expense: ExpenseCreateInput): Promise<string> {
+    // 1. Add to IndexedDB immediately (optimistic) - store generates the ID
+    const expense_id = await stores.createExpense(expense);
 
-    // 2. Add to IndexedDB immediately (optimistic)
-    await stores.createExpense(expense_with_id);
-
-    // 3. Queue operation for sync
-    const operation = createOperation('expenses', expense_id, expense_with_id);
+    // 2. Queue operation for sync (use original expense + correct ID)
+    const operation = createOperation('expenses', expense_id, { ...expense, id: expense_id });
     await queueManager.enqueue(operation);
 
-    // 4. Track optimistic update with rollback function
-    const update: OptimisticUpdate<any> = {
+    // 3. Track optimistic update with rollback function
+    const update: OptimisticUpdate<Record<string, unknown>> = {
       id: crypto.randomUUID(),
       operation_id: operation.id,
       rollback: async () => {
         await stores.deleteExpense(expense_id);
       },
       status: 'pending',
-      data: expense_with_id
+      data: { ...expense, id: expense_id }
     };
     this.updates.set(update.id, update);
 
@@ -56,7 +53,7 @@ export class OptimisticUpdateManager {
    * Update expense optimistically
    * Immediately applies update to IndexedDB and queues for sync
    */
-  async updateExpense(id: string, updates: any): Promise<void> {
+  async updateExpense(id: string, updates: Partial<OfflineExpense>): Promise<void> {
     // 1. Get original values for rollback
     const original = await stores.getExpense(id);
     if (!original) throw new Error('Expense not found');
@@ -69,14 +66,14 @@ export class OptimisticUpdateManager {
     await queueManager.enqueue(operation);
 
     // 4. Track optimistic update with rollback
-    const update: OptimisticUpdate<any> = {
+    const update: OptimisticUpdate<Record<string, unknown>> = {
       id: crypto.randomUUID(),
       operation_id: operation.id,
       rollback: async () => {
         await stores.updateExpense(id, original);
       },
       status: 'pending',
-      data: updates
+      data: updates as Record<string, unknown>
     };
     this.updates.set(update.id, update);
   }
@@ -98,7 +95,7 @@ export class OptimisticUpdateManager {
     await queueManager.enqueue(operation);
 
     // 4. Track with rollback
-    const update: OptimisticUpdate<any> = {
+    const update: OptimisticUpdate<Record<string, unknown>> = {
       id: crypto.randomUUID(),
       operation_id: operation.id,
       rollback: async () => {
@@ -120,8 +117,7 @@ export class OptimisticUpdateManager {
 
     if (update) {
       update.status = 'committed';
-      // Update IndexedDB record to sync_status = 'synced'
-      // Note: The sync engine already updates the record when sync completes
+      this.updates.delete(update.id);
     }
   }
 
@@ -136,6 +132,7 @@ export class OptimisticUpdateManager {
     if (update && update.status === 'pending') {
       await update.rollback();
       update.status = 'rolled_back';
+      this.updates.delete(update.id);
     }
   }
 
@@ -143,7 +140,7 @@ export class OptimisticUpdateManager {
    * Get pending optimistic updates (for UI sync indicator)
    * Returns all updates that haven't been committed or rolled back
    */
-  getPending(): OptimisticUpdate<any>[] {
+  getPending(): OptimisticUpdate<Record<string, unknown>>[] {
     return Array.from(this.updates.values())
       .filter(u => u.status === 'pending');
   }

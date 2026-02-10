@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase/server';
 import { generateInviteToken, hashToken } from '@/lib/utils/token';
 import type { Participant } from '@/lib/db/types';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Create an invite link for a participant
  *
@@ -27,6 +29,8 @@ import type { Participant } from '@/lib/db/types';
 export async function createInvite(
   participantId: string
 ): Promise<{ token: string; inviteUrl: string } | null> {
+  if (!participantId || !UUID_RE.test(participantId)) return null;
+
   const supabase = await createClient();
 
   // Verify user is authenticated
@@ -34,6 +38,18 @@ export async function createInvite(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
+    return null;
+  }
+
+  // Verify user owns this participant
+  const { data: participant } = await supabase
+    .from('participants')
+    .select('id')
+    .eq('id', participantId)
+    .eq('created_by_user_id', user.id)
+    .single();
+
+  if (!participant) {
     return null;
   }
 
@@ -81,6 +97,8 @@ export async function createInvite(
 export async function getInviteByToken(
   token: string
 ): Promise<{ participant: Participant; isValid: boolean } | null> {
+  if (!token || !/^[0-9a-f]{64}$/i.test(token)) return null;
+
   const supabase = await createClient();
   const tokenHash = hashToken(token);
 
@@ -122,6 +140,8 @@ export async function getInviteByToken(
  * const success = await markInviteUsed('a3f5c8d2e1b4f6c9...');
  */
 export async function markInviteUsed(token: string): Promise<boolean> {
+  if (!token || !/^[0-9a-f]{64}$/i.test(token)) return false;
+
   const supabase = await createClient();
   const tokenHash = hashToken(token);
 

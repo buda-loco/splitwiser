@@ -20,6 +20,7 @@ import type { CurrencyCode } from '@/lib/currency/types';
 export function useBalances() {
   const [balances, setBalances] = useState<BalanceResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [simplified, setSimplified] = useState(false);
   const [targetCurrency, setTargetCurrency] = useState<CurrencyCode>('AUD');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -28,13 +29,15 @@ export function useBalances() {
   const loadBalances = async () => {
     try {
       setLoading(true);
+      setError(null);
       const result = await calculateBalances({
         simplified,
         targetCurrency,
       });
       setBalances(result);
-    } catch (error) {
-      console.error('Failed to load balances:', error);
+    } catch (err) {
+      console.error('Failed to load balances:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
       setBalances(null);
     } finally {
       setLoading(false);
@@ -74,6 +77,7 @@ export function useBalances() {
   return {
     balances,
     loading,
+    error,
     simplified,
     setSimplified,
     targetCurrency,

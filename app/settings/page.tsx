@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { PageTransition } from '@/components/PageTransition';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { ListRow } from '@/components/ListRow';
 
 export default function SettingsPage() {
   const { user, profile, signOut } = useAuth();
@@ -27,12 +28,31 @@ export default function SettingsPage() {
             </p>
 
             {/* User Info Section */}
-            <div className="mb-8 bg-white rounded-lg p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-ios-gray mb-2">
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold text-ios-gray mb-2 px-4">
                 Account
               </h2>
-              <p className="text-base mb-1">{profile?.display_name}</p>
-              <p className="text-sm text-ios-gray">{user?.email}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                <ListRow
+                  title={profile?.display_name || 'User'}
+                  subtitle={user?.email || ''}
+                  showChevron={false}
+                />
+              </div>
+            </div>
+
+            {/* Settings Options (placeholder for future) */}
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold text-ios-gray mb-2 px-4">
+                Options
+              </h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                <ListRow
+                  title="Settings"
+                  subtitle="Coming in later phases"
+                  showChevron={false}
+                />
+              </div>
             </div>
 
             {/* Sign Out Button */}
@@ -42,10 +62,6 @@ export default function SettingsPage() {
             >
               Sign Out
             </button>
-
-            <p className="text-ios-gray mt-6">
-              Settings coming in later phases
-            </p>
           </div>
         </main>
       </PageTransition>

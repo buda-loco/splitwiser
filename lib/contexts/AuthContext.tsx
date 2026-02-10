@@ -49,11 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch profile for authenticated user
         getCurrentUserProfile().then((profile) => {
           setProfile(profile);
+        }).catch((err) => {
+          console.error('Failed to fetch user profile:', err);
+        }).finally(() => {
           setLoading(false);
         });
       } else {
         setLoading(false);
       }
+    }).catch((err) => {
+      console.error('Failed to get user session:', err);
+      setLoading(false);
     });
 
     // Subscribe to auth state changes
@@ -65,8 +71,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (currentUser) {
         // Fetch updated profile when auth state changes
-        const updatedProfile = await getCurrentUserProfile();
-        setProfile(updatedProfile);
+        try {
+          const updatedProfile = await getCurrentUserProfile();
+          setProfile(updatedProfile);
+        } catch (err) {
+          console.error('Failed to fetch updated profile:', err);
+          setProfile(null);
+        }
       } else {
         // Clear profile when logged out
         setProfile(null);

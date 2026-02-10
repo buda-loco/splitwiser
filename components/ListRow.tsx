@@ -6,7 +6,7 @@ import { ReactNode } from 'react';
 
 interface ListRowProps {
   title: string;
-  subtitle?: string;
+  subtitle?: string | ReactNode;
   value?: string | ReactNode;
   leftIcon?: ReactNode;
   showChevron?: boolean;
@@ -47,9 +47,13 @@ export function ListRow({
             {title}
           </span>
           {subtitle && (
-            <span className="text-sm text-ios-gray dark:text-gray-400 truncate">
-              {subtitle}
-            </span>
+            <div className="text-sm text-ios-gray dark:text-gray-400">
+              {typeof subtitle === 'string' ? (
+                <span className="truncate">{subtitle}</span>
+              ) : (
+                subtitle
+              )}
+            </div>
           )}
         </div>
       </div>

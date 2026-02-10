@@ -19,13 +19,17 @@ export function SyncIndicator() {
   // Update sync status periodically
   useEffect(() => {
     async function checkSyncStatus() {
-      const { pending } = await queueManager.getQueueSize();
-      const status = syncEngine.getStatus();
+      try {
+        const { pending } = await queueManager.getQueueSize();
+        const status = syncEngine.getStatus();
 
-      setSyncStatus({
-        pending,
-        syncing: status.is_syncing
-      });
+        setSyncStatus({
+          pending,
+          syncing: status.is_syncing
+        });
+      } catch {
+        // IndexedDB may be unavailable (e.g. Safari private browsing)
+      }
     }
 
     checkSyncStatus();

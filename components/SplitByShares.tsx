@@ -69,12 +69,12 @@ export function SplitByShares({
 
   return (
     <div className="space-y-3">
-      <h3 className="font-medium text-gray-900">Split by Shares</h3>
+      <h3 className="font-medium text-gray-900 dark:text-white">Split by Shares</h3>
 
       {/* Show per-share amount */}
       {totalShares > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-sm text-blue-900">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+          <p className="text-sm text-blue-900 dark:text-blue-200">
             ${perShare.toFixed(2)} per share × {totalShares} shares = ${amount.toFixed(2)}
           </p>
         </div>
@@ -92,7 +92,7 @@ export function SplitByShares({
 
           return (
             <div key={key} className="flex items-center gap-3">
-              <span className="flex-1 text-gray-900">{participant.name}</span>
+              <span className="flex-1 text-gray-900 dark:text-white">{participant.name}</span>
 
               <div className="flex items-center gap-2">
                 <input
@@ -101,12 +101,13 @@ export function SplitByShares({
                   onChange={(e) => handleShareChange(key, e.target.value)}
                   min="0"
                   step="1"
-                  className="w-16 px-2 py-1 border border-gray-300 rounded text-right"
+                  aria-label={`Shares for ${participant.name}`}
+                  className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded text-right"
                 />
-                <span className="text-gray-600 w-16">
+                <span className="text-gray-600 dark:text-gray-400 w-16">
                   {participantShares === 1 ? 'share' : 'shares'}
                 </span>
-                <span className="w-20 text-right font-medium text-gray-900">
+                <span className="w-20 text-right font-medium text-gray-900 dark:text-white">
                   ${split?.amount.toFixed(2) || '0.00'}
                 </span>
               </div>
@@ -117,20 +118,20 @@ export function SplitByShares({
 
       {/* Rounding warning */}
       {!amountValid && (
-        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3">
-          <p className="text-sm text-yellow-800">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
             Rounding difference: ${Math.abs(totalAmount - amount).toFixed(2)}
           </p>
         </div>
       )}
 
       {/* Total */}
-      <div className="pt-2 border-t border-gray-300">
+      <div className="pt-2 border-t border-gray-300 dark:border-gray-600">
         <div className="flex justify-between">
-          <span className="font-semibold">Total</span>
+          <span className="font-semibold dark:text-white">Total</span>
           <div className="flex gap-4">
-            <span className="text-gray-600">{totalShares} shares</span>
-            <span className="font-semibold">${totalAmount.toFixed(2)}</span>
+            <span className="text-gray-600 dark:text-gray-400">{totalShares} shares</span>
+            <span className="font-semibold dark:text-white">${totalAmount.toFixed(2)}</span>
           </div>
         </div>
       </div>

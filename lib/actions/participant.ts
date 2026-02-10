@@ -49,10 +49,17 @@ export async function getParticipant(id: string): Promise<Participant | null> {
   try {
     const supabase = await createClient();
 
+    // Verify authentication for defense-in-depth (RLS is primary boundary)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('participants')
       .select('*')
       .eq('id', id)
+      .eq('created_by_user_id', user.id)
       .single();
 
     if (error) {
@@ -137,10 +144,19 @@ export async function updateParticipant(
   try {
     const supabase = await createClient();
 
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Failed to get current user:', authError);
+      return null;
+    }
+
+    // Only allow updating participants created by the current user
     const { data, error } = await supabase
       .from('participants')
       .update(updates)
       .eq('id', id)
+      .eq('created_by_user_id', user.id)
       .select()
       .single();
 
