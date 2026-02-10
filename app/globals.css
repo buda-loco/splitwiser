@@ -15,7 +15,30 @@
 
   @media (prefers-color-scheme: dark) {
     body {
-      @apply bg-black text-white;
+      @apply bg-[#000000] text-white;
+    }
+
+    /* Ensure smooth color transitions */
+    * {
+      transition-property: background-color, border-color, color, fill, stroke;
+      transition-duration: 0.2s;
+      transition-timing-function: ease-in-out;
+    }
+
+    /* Respect prefers-reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition-duration: 0ms;
+      }
+    }
+
+    /* Improve form inputs in dark mode */
+    input, textarea, select {
+      @apply bg-ios-darkGray2 border-ios-darkGray4 text-white;
+    }
+
+    input::placeholder, textarea::placeholder {
+      @apply text-ios-darkGray5;
     }
   }
 }
