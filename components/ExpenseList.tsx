@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getExpenses, getExpenseParticipants, getAllTags, getExpenseTags } from '@/lib/db/stores';
 import type { OfflineExpense, ExpenseParticipant } from '@/lib/db/types';
 import { motion } from 'framer-motion';
+import { ListRow } from '@/components/ListRow';
 
 export function ExpenseList() {
   const router = useRouter();
@@ -16,8 +17,12 @@ export function ExpenseList() {
 
   useEffect(() => {
     async function loadTags() {
-      const tags = await getAllTags();
-      setAvailableTags(tags);
+      try {
+        const tags = await getAllTags();
+        setAvailableTags(tags);
+      } catch (err) {
+        console.error('Failed to load tags:', err);
+      }
     }
     loadTags();
   }, []);
@@ -49,11 +54,17 @@ export function ExpenseList() {
 
       // Load participants and tags for each expense
       const withParticipantsAndTags = await Promise.all(
-        sorted.map(async (expense) => ({
-          ...expense,
-          participants: await getExpenseParticipants(expense.id),
-          tags: await getExpenseTags(expense.id)
-        }))
+        sorted.map(async (expense) => {
+          try {
+            return {
+              ...expense,
+              participants: await getExpenseParticipants(expense.id),
+              tags: await getExpenseTags(expense.id)
+            };
+          } catch {
+            return { ...expense, participants: [], tags: [] };
+          }
+        })
       );
 
       setExpenses(withParticipantsAndTags);
@@ -178,71 +189,37 @@ export function ExpenseList() {
       </div>
 
       {/* Expense list */}
-      <div className="divide-y divide-gray-200 dark:divide-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         {expenses.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             {selectedTag ? `No expenses tagged "${selectedTag}"` : 'No expenses yet. Tap + to create one.'}
           </div>
         ) : (
-          expenses.map((expense) => (
-            <motion.div
-              key={expense.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 dark:hover:bg-gray-800 dark:active:bg-gray-700"
-              onClick={() => router.push(`/expenses/${expense.id}`)}
-            >
-              <div className="flex justify-between items-start mb-1">
-                <h3 className="font-medium text-gray-900 dark:text-gray-100">{expense.description}</h3>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">
-                  ${expense.amount.toFixed(2)}
-                </span>
-              </div>
+          expenses.map((expense) => {
+            // Build subtitle with category and date
+            const subtitleParts = [];
+            if (expense.category) {
+              subtitleParts.push(expense.category);
+            }
+            subtitleParts.push(new Date(expense.expense_date).toLocaleDateString());
+            const subtitle = subtitleParts.join(' • ');
 
-              {/* Tags */}
-              {expense.tags.length > 0 && (
-                <div className="flex items-center gap-1 mb-2 flex-wrap">
-                  {expense.tags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/tags/${encodeURIComponent(tag)}`);
-                      }}
-                      className="text-xs rounded-full px-2 py-1 bg-ios-blue/10 text-ios-blue dark:bg-gray-800 dark:text-gray-300 cursor-pointer hover:bg-ios-blue/20 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {expense.tags.length > 3 && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      +{expense.tags.length - 3} more
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {expense.category && (
-                    <>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">{expense.category}</span>
-                      <span className="text-sm text-gray-400 dark:text-gray-600">•</span>
-                    </>
-                  )}
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(expense.expense_date).toLocaleDateString()}
-                  </span>
-                </div>
-
-                {expense.participants.length > 0 && (
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {expense.participants.length} {expense.participants.length === 1 ? 'person' : 'people'}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))
+            return (
+              <motion.div
+                key={expense.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <ListRow
+                  title={expense.description}
+                  subtitle={subtitle}
+                  value={`$${expense.amount.toFixed(2)}`}
+                  showChevron={true}
+                  onClick={() => router.push(`/expenses/${expense.id}`)}
+                />
+              </motion.div>
+            );
+          })
         )}
       </div>
 
