@@ -821,6 +821,81 @@ export async function getRecentExpenseChanges(limit: number = 100): Promise<Offl
     .slice(0, limit);
 }
 
+/**
+ * Revert expense to a previous version
+ */
+export async function revertExpenseToVersion(
+  expense_id: string,
+  version_number: number,
+  userId: string
+): Promise<void> {
+  const db = await getDatabase();
+  const tx = db.transaction([STORES.EXPENSES, STORES.EXPENSE_VERSIONS], 'readwrite');
+
+  // Get target version
+  const targetVersion = await getExpenseVersion(expense_id, version_number);
+  if (!targetVersion) {
+    throw new Error('Version not found');
+  }
+
+  // Get current expense
+  const expense = await promisifyRequest(tx.objectStore(STORES.EXPENSES).get(expense_id));
+  if (!expense) {
+    throw new Error('Expense not found');
+  }
+
+  // Capture current state for version history
+  const beforeRevert: Partial<Expense> = {
+    amount: expense.amount,
+    currency: expense.currency,
+    description: expense.description,
+    category: expense.category,
+    expense_date: expense.expense_date,
+    paid_by_user_id: expense.paid_by_user_id,
+  };
+
+  // Apply target version's "after" state
+  const targetState = targetVersion.changes.after;
+  if (targetState) {
+    expense.amount = targetState.amount ?? expense.amount;
+    expense.currency = targetState.currency ?? expense.currency;
+    expense.description = targetState.description ?? expense.description;
+    expense.category = targetState.category ?? expense.category;
+    expense.expense_date = targetState.expense_date ?? expense.expense_date;
+    expense.paid_by_user_id = targetState.paid_by_user_id ?? expense.paid_by_user_id;
+    expense.version += 1;
+    expense.updated_at = new Date().toISOString();
+    expense.sync_status = 'pending';
+    expense.local_updated_at = new Date().toISOString();
+
+    await promisifyRequest(tx.objectStore(STORES.EXPENSES).put(expense));
+
+    // Record this revert as an update
+    const version: OfflineExpenseVersion = {
+      id: crypto.randomUUID(),
+      expense_id,
+      version_number: expense.version,
+      changed_by_user_id: userId,
+      change_type: 'updated',
+      changes: {
+        before: beforeRevert,
+        after: targetState
+      },
+      created_at: new Date().toISOString(),
+      sync_status: 'pending',
+      local_updated_at: new Date().toISOString()
+    };
+    await promisifyRequest(tx.objectStore(STORES.EXPENSE_VERSIONS).add(version));
+  }
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(new Error('Transaction aborted'));
+  });
+}
+
 // =====================================================
 // Sync Queue Operations
 // =====================================================
