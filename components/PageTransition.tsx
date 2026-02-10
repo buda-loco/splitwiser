@@ -17,7 +17,7 @@ export function PageTransition({ children }: PageTransitionProps) {
         transition={{
           type: 'spring',
           stiffness: 260,
-          damping: 20,
+          damping: 15, // Reduced from 20 for snappier exit animation (complements swipe gesture)
         }}
       >
         {children}
