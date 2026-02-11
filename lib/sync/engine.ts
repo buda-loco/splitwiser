@@ -86,7 +86,6 @@ export class SyncEngine {
     const payload = 'payload' in operation ? operation.payload : undefined;
 
     if (operation_type === 'create') {
-      // INSERT into Supabase
       const { error } = await supabase
         .from(table)
         .insert(payload);
@@ -147,7 +146,6 @@ export class SyncEngine {
       }
 
     } else if (operation_type === 'delete') {
-      // Soft delete (set is_deleted = true, deleted_at = now())
       const { error } = await supabase
         .from(table)
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })

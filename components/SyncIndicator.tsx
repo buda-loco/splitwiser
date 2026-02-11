@@ -43,7 +43,6 @@ export function SyncIndicator() {
     };
   }, []);
 
-  // Determine indicator state
   const getIndicatorState = () => {
     if (!online) {
       return { color: 'bg-yellow-500', text: 'Offline', icon: <WifiOff className="w-4 h-4" /> };

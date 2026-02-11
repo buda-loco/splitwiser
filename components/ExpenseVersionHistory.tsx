@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getExpenseVersions } from '@/lib/db/stores';
 import type { OfflineExpenseVersion } from '@/lib/db/types';
+import { formatRelativeTime } from '@/lib/utils/time';
 
 export function ExpenseVersionHistory({ expenseId }: { expenseId: string }) {
   const [versions, setVersions] = useState<OfflineExpenseVersion[]>([]);
@@ -12,9 +13,14 @@ export function ExpenseVersionHistory({ expenseId }: { expenseId: string }) {
 
   useEffect(() => {
     async function loadVersions() {
-      const v = await getExpenseVersions(expenseId);
-      setVersions(v);
-      setLoading(false);
+      try {
+        const v = await getExpenseVersions(expenseId);
+        setVersions(v);
+      } catch (err) {
+        console.error('Failed to load version history:', err);
+      } finally {
+        setLoading(false);
+      }
     }
     loadVersions();
   }, [expenseId]);
@@ -25,6 +31,7 @@ export function ExpenseVersionHistory({ expenseId }: { expenseId: string }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between"
       >
@@ -118,17 +125,3 @@ function renderChanges(version: OfflineExpenseVersion) {
   return null;
 }
 
-function formatRelativeTime(timestamp: string): string {
-  const now = new Date();
-  const then = new Date(timestamp);
-  const diffMs = now.getTime() - then.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return then.toLocaleDateString();
-}

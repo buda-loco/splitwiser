@@ -68,10 +68,6 @@ async function recordExpenseVersion(
  * Create a new expense in local storage
  * Generates UUID and tracks as pending sync
  */
-/**
- * Create a new expense in local storage
- * Generates UUID and tracks as pending sync
- */
 export async function createExpense(
   expense: ExpenseCreateInput
 ): Promise<string> {
@@ -126,7 +122,7 @@ export async function createExpense(
   };
   await promisifyRequest(transaction.objectStore(STORES.EXPENSE_VERSIONS).add(version));
 
-  // Wait for transaction to complete
+
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
@@ -239,7 +235,7 @@ export async function updateExpense(
 
   // Record version (only if userId provided)
   if (!userId) {
-    // Wait for transaction to complete
+  
     await new Promise<void>((resolve, reject) => {
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
@@ -263,7 +259,7 @@ export async function updateExpense(
   };
   await promisifyRequest(transaction.objectStore(STORES.EXPENSE_VERSIONS).add(version));
 
-  // Wait for transaction to complete
+
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
@@ -310,7 +306,7 @@ export async function deleteExpense(id: string, userId?: string): Promise<void> 
 
   // Record version (only if userId provided)
   if (!userId) {
-    // Wait for transaction to complete
+  
     await new Promise<void>((resolve, reject) => {
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
@@ -337,7 +333,7 @@ export async function deleteExpense(id: string, userId?: string): Promise<void> 
   };
   await promisifyRequest(transaction.objectStore(STORES.EXPENSE_VERSIONS).add(version));
 
-  // Wait for transaction to complete
+
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
@@ -368,7 +364,7 @@ export async function restoreExpense(id: string, userId?: string): Promise<void>
 
   // Record version (only if userId provided)
   if (!userId) {
-    // Wait for transaction to complete
+  
     await new Promise<void>((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -392,12 +388,63 @@ export async function restoreExpense(id: string, userId?: string): Promise<void>
   };
   await promisifyRequest(tx.objectStore(STORES.EXPENSE_VERSIONS).add(version));
 
-  // Wait for transaction to complete
+
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(new Error('Transaction aborted'));
   });
+}
+
+// =====================================================
+// Participant Operations
+// =====================================================
+
+/**
+ * Save or update a participant in IndexedDB
+ * Used for offline-created participants before they're synced to server
+ */
+export async function saveParticipant(participant: {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  created_by_user_id: string;
+}): Promise<string> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.PARTICIPANTS], 'readwrite');
+  const store = transaction.objectStore(STORES.PARTICIPANTS);
+
+  const participantRecord = {
+    id: participant.id,
+    name: participant.name,
+    email: participant.email || null,
+    phone: participant.phone || null,
+    claimed_by_user_id: null,
+    created_by_user_id: participant.created_by_user_id,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  await promisifyRequest(store.put(participantRecord));
+
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(new Error('Transaction aborted'));
+  });
+
+  return participant.id;
+}
+
+/**
+ * Get a participant by ID
+ */
+export async function getParticipantById(id: string): Promise<any | null> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.PARTICIPANTS], 'readonly');
+  const store = transaction.objectStore(STORES.PARTICIPANTS);
+  return promisifyRequest(store.get(id));
 }
 
 // =====================================================
@@ -442,12 +489,33 @@ export async function addParticipantToExpense(
  */
 export async function getExpenseParticipants(
   expense_id: string
-): Promise<ExpenseParticipant[]> {
+): Promise<(ExpenseParticipant & { name?: string })[]> {
   const db = await getDatabase();
-  const transaction = db.transaction([STORES.EXPENSE_PARTICIPANTS], 'readonly');
-  const store = transaction.objectStore(STORES.EXPENSE_PARTICIPANTS);
-  const index = store.index('expense_id');
-  return promisifyRequest(index.getAll(expense_id));
+  const transaction = db.transaction([STORES.EXPENSE_PARTICIPANTS, STORES.PARTICIPANTS], 'readonly');
+  const expenseParticipantStore = transaction.objectStore(STORES.EXPENSE_PARTICIPANTS);
+  const participantStore = transaction.objectStore(STORES.PARTICIPANTS);
+  const index = expenseParticipantStore.index('expense_id');
+
+  const expenseParticipants = await promisifyRequest(index.getAll(expense_id));
+
+  // Enrich with participant names from Participants store
+  const enriched = await Promise.all(
+    expenseParticipants.map(async (ep) => {
+      if (ep.participant_id) {
+        try {
+          const participant = await promisifyRequest(participantStore.get(ep.participant_id));
+          if (participant) {
+            return { ...ep, name: participant.name };
+          }
+        } catch (err) {
+          console.error(`Failed to load participant ${ep.participant_id}:`, err);
+        }
+      }
+      return ep;
+    })
+  );
+
+  return enriched;
 }
 
 /**
@@ -888,7 +956,7 @@ export async function revertExpenseToVersion(
     await promisifyRequest(tx.objectStore(STORES.EXPENSE_VERSIONS).add(version));
   }
 
-  // Wait for transaction to complete
+
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -1009,7 +1077,7 @@ export async function createTemplate(template: TemplateCreateInput): Promise<Off
     await promisifyRequest(tx.objectStore(STORES.TEMPLATE_PARTICIPANTS).add(participantRecord));
   }
 
-  // Wait for transaction to complete
+
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -1088,7 +1156,7 @@ export async function deleteTemplate(templateId: string): Promise<void> {
   // Delete template
   await promisifyRequest(tx.objectStore(STORES.SPLIT_TEMPLATES).delete(templateId));
 
-  // Wait for transaction to complete
+
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);

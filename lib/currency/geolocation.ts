@@ -131,7 +131,6 @@ export function getCurrencyFromCoordinates(lat: number, lon: number): CurrencyCo
 export async function detectCurrencyFromLocation(): Promise<CurrencyCode | null> {
   // Check if geolocation available
   if (!navigator.geolocation) {
-    console.log('Geolocation not supported');
     return null;
   }
 
@@ -153,14 +152,8 @@ export async function detectCurrencyFromLocation(): Promise<CurrencyCode | null>
       position.coords.longitude
     );
 
-    if (currency) {
-      console.log(`Detected currency: ${currency} (${position.coords.latitude}, ${position.coords.longitude})`);
-    }
-
     return currency;
   } catch (error) {
-    // Permission denied, timeout, or other error
-    console.log('Could not detect location:', error);
     return null;
   }
 }

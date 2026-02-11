@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
-import { addParticipantToExpense, createSplit, addTagToExpense, deleteExpense } from '@/lib/db/stores';
+import { addParticipantToExpense, createSplit, addTagToExpense, deleteExpense, saveParticipant } from '@/lib/db/stores';
 
 /**
  * New Expense Page
@@ -48,8 +48,18 @@ export default function NewExpensePage() {
       const expenseId = await createExpense(expenseData);
 
       try {
-        // Add participants to the expense
+        // Save and add participants to the expense
         for (const participant of formData.participants) {
+          // If this is a new participant (has name but no user_id), save it first
+          if (participant.participant_id && !participant.user_id && participant.name) {
+            await saveParticipant({
+              id: participant.participant_id,
+              name: participant.name,
+              email: participant.email,
+              created_by_user_id: currentUserId,
+            });
+          }
+
           await addParticipantToExpense(
             expenseId,
             participant.user_id || undefined,

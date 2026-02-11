@@ -8,7 +8,7 @@
 
 // Database configuration
 const DB_NAME = 'splitwiser-offline';
-const DB_VERSION = 4; // Incremented for expense_versions sync_status index
+const DB_VERSION = 5; // Incremented for participants store
 
 // Store names matching our schema
 export const STORES = {
@@ -22,6 +22,7 @@ export const STORES = {
   EXCHANGE_RATES: 'exchange_rates', // For cached exchange rates
   SPLIT_TEMPLATES: 'split_templates', // For reusable split configurations
   TEMPLATE_PARTICIPANTS: 'template_participants', // For template participant mappings
+  PARTICIPANTS: 'participants', // For offline-created participants
 } as const;
 
 /**
@@ -113,6 +114,13 @@ export function initDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORES.TEMPLATE_PARTICIPANTS)) {
         const templateParticipantsStore = db.createObjectStore(STORES.TEMPLATE_PARTICIPANTS, { keyPath: 'id' });
         templateParticipantsStore.createIndex('template_id', 'template_id', { unique: false });
+      }
+
+      // Participants store (v5)
+      if (!db.objectStoreNames.contains(STORES.PARTICIPANTS)) {
+        const participantsStore = db.createObjectStore(STORES.PARTICIPANTS, { keyPath: 'id' });
+        participantsStore.createIndex('created_by_user_id', 'created_by_user_id', { unique: false });
+        participantsStore.createIndex('claimed_by_user_id', 'claimed_by_user_id', { unique: false });
       }
     };
   });

@@ -19,6 +19,7 @@ export function ExpenseDetail({ id }: { id: string }) {
   const [versions, setVersions] = useState<OfflineExpenseVersion[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [undoError, setUndoError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadExpense() {
@@ -114,6 +115,7 @@ export function ExpenseDetail({ id }: { id: string }) {
     );
     if (!confirmed) return;
 
+    setUndoError(null);
     try {
       const userId = 'temp-user-id'; // TODO: Get from auth context
       await revertExpenseToVersion(id, previousVersion.version_number, userId);
@@ -127,7 +129,7 @@ export function ExpenseDetail({ id }: { id: string }) {
       setVersions(vers);
     } catch (error) {
       console.error('Failed to undo:', error);
-      alert('Failed to undo change. Please try again.');
+      setUndoError('Failed to undo change. Please try again.');
     }
   };
 
@@ -201,6 +203,12 @@ export function ExpenseDetail({ id }: { id: string }) {
           </button>
         </div>
       </div>
+
+      {undoError && (
+        <div className="mx-4 mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+          <p className="text-sm text-red-600 dark:text-red-400">{undoError}</p>
+        </div>
+      )}
 
       {/* Expense details */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">

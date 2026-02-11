@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { getRecentExpenseChanges, getExpense } from '@/lib/db/stores';
 import type { OfflineExpenseVersion, OfflineExpense } from '@/lib/db/types';
+import { formatRelativeTime } from '@/lib/utils/time';
 
 type ActivityItem = {
   version: OfflineExpenseVersion;
@@ -15,31 +16,37 @@ export function ActivityFeed() {
   const router = useRouter();
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | '7d' | '30d'>('all');
+  type FilterOption = 'all' | '7d' | '30d';
+  const [filter, setFilter] = useState<FilterOption>('all');
 
   useEffect(() => {
     async function loadActivity() {
-      const versions = await getRecentExpenseChanges(100);
+      try {
+        const versions = await getRecentExpenseChanges(100);
 
-      // Filter by time
-      const now = new Date();
-      const filtered = versions.filter(v => {
-        if (filter === 'all') return true;
-        const age = now.getTime() - new Date(v.created_at).getTime();
-        const days = age / 86400000;
-        return filter === '7d' ? days <= 7 : days <= 30;
-      });
+        // Filter by time
+        const now = new Date();
+        const filtered = versions.filter(v => {
+          if (filter === 'all') return true;
+          const age = now.getTime() - new Date(v.created_at).getTime();
+          const days = age / 86400000;
+          return filter === '7d' ? days <= 7 : days <= 30;
+        });
 
-      // Load expense for each version
-      const itemsWithExpenses = await Promise.all(
-        filtered.map(async (version) => ({
-          version,
-          expense: await getExpense(version.expense_id)
-        }))
-      );
+        // Load expense for each version
+        const itemsWithExpenses = await Promise.all(
+          filtered.map(async (version) => ({
+            version,
+            expense: await getExpense(version.expense_id)
+          }))
+        );
 
-      setItems(itemsWithExpenses);
-      setLoading(false);
+        setItems(itemsWithExpenses);
+      } catch (err) {
+        console.error('Failed to load activity:', err);
+      } finally {
+        setLoading(false);
+      }
     }
 
     loadActivity();
@@ -67,14 +74,14 @@ export function ActivityFeed() {
     <div>
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4">
-        {[
-          { id: 'all', label: 'All' },
-          { id: '7d', label: 'Last 7 days' },
-          { id: '30d', label: 'Last 30 days' }
-        ].map(({ id, label }) => (
+        {([
+          { id: 'all' as FilterOption, label: 'All' },
+          { id: '7d' as FilterOption, label: 'Last 7 days' },
+          { id: '30d' as FilterOption, label: 'Last 30 days' }
+        ]).map(({ id, label }) => (
           <button
             key={id}
-            onClick={() => setFilter(id as any)}
+            onClick={() => setFilter(id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === id
                 ? 'bg-ios-blue text-white'
@@ -152,17 +159,3 @@ function renderChangeSummary(version: OfflineExpenseVersion): React.ReactNode {
   return null;
 }
 
-function formatRelativeTime(timestamp: string): string {
-  const now = new Date();
-  const then = new Date(timestamp);
-  const diffMs = now.getTime() - then.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return then.toLocaleDateString();
-}
