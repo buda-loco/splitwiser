@@ -41,9 +41,9 @@ export default function DebugEnvPage() {
         </div>
 
         <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900 rounded">
-          <strong>✓ If origin shows localhost:</strong> You're on localhost, not Vercel!
+          <strong>✓ If origin shows localhost:</strong> You&apos;re on localhost, not Vercel!
           <br />
-          <strong>✓ If origin shows vercel.app:</strong> You're on Vercel correctly
+          <strong>✓ If origin shows vercel.app:</strong> You&apos;re on Vercel correctly
         </div>
       </div>
     </div>
