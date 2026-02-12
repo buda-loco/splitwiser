@@ -21,7 +21,7 @@ export default async function NotificationSettingsPage() {
   }
 
   return (
-    <SwipeNavigation href="/settings">
+    <SwipeNavigation>
       <PageTransition>
         <div className="min-h-screen bg-white dark:bg-black pt-safe-top pb-safe">
           {/* Header */}
