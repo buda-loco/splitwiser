@@ -92,6 +92,7 @@ export async function createExpense(
     sync_status: 'pending',
     local_updated_at: now,
     manual_exchange_rate: expense.manual_exchange_rate ?? null,
+    receipt_urls: expense.receipt_urls ?? [],
   };
 
   const transaction = db.transaction([STORES.EXPENSES, STORES.EXPENSE_VERSIONS], 'readwrite');

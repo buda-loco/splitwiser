@@ -96,6 +96,7 @@ export type Expense = {
   created_by_user_id: string;
   is_deleted: boolean;
   version: number;
+  receipt_urls?: string[]; // Array of Supabase Storage public URLs for receipt photos
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -121,6 +122,7 @@ export type OfflineExpense = Expense & {
 export type ExpenseCreateInput = Pick<Expense, 'amount' | 'currency' | 'description' | 'category' | 'expense_date' | 'created_by_user_id'> & {
   paid_by_user_id?: string | null;
   manual_exchange_rate?: OfflineExpense['manual_exchange_rate'];
+  receipt_urls?: string[];
 };
 
 /**

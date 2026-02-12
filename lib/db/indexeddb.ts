@@ -8,7 +8,7 @@
 
 // Database configuration
 const DB_NAME = 'splitwiser-offline';
-const DB_VERSION = 6; // Incremented for custom_categories store
+const DB_VERSION = 7; // Incremented for receipt_urls field in expenses
 
 // Store names matching our schema
 export const STORES = {
