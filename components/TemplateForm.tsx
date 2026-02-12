@@ -232,8 +232,8 @@ export function TemplateForm({
               Template will auto-suggest when creating expenses in this category
             </p>
             <CategoryPicker
-              selectedCategory={categoryId}
-              onSelect={(category) => setCategoryId(category)}
+              value={categoryId}
+              onChange={(category) => setCategoryId(category)}
             />
           </div>
 
