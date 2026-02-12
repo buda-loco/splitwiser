@@ -5,7 +5,7 @@ import { PageTransition } from '@/components/PageTransition';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { ListRow } from '@/components/ListRow';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Bell } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, profile, signOut } = useAuth();
@@ -44,6 +44,21 @@ export default function SettingsPage() {
                   title={profile?.display_name || 'User'}
                   subtitle={user?.email || ''}
                   showChevron={false}
+                />
+              </div>
+            </div>
+
+            {/* Preferences */}
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold text-ios-gray mb-2 px-4">
+                Preferences
+              </h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                <ListRow
+                  title="Notifications"
+                  subtitle="Manage push notification preferences"
+                  onClick={() => router.push('/settings/notifications')}
+                  showChevron={true}
                 />
               </div>
             </div>
