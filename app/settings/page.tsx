@@ -48,6 +48,21 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Organization Settings */}
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold text-ios-gray mb-2 px-4">
+                Organization
+              </h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                <ListRow
+                  title="Manage Categories"
+                  subtitle="Create custom expense categories"
+                  onClick={() => router.push('/settings/categories')}
+                  showChevron={true}
+                />
+              </div>
+            </div>
+
             {/* Settings Options */}
             <div className="mb-6">
               <h2 className="text-sm font-semibold text-ios-gray mb-2 px-4">
