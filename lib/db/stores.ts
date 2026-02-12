@@ -1399,3 +1399,62 @@ export async function getCategoriesForPicker(userId: string): Promise<Array<{
 
   return [...predefined, ...custom];
 }
+
+// =====================================================
+// Notification Preferences Operations
+// =====================================================
+
+export interface NotificationPreferences {
+  user_id: string;
+  expense_shared: boolean;
+  expense_updated: boolean;
+  settlement_requested: boolean;
+}
+
+/**
+ * Get notification preferences for a user
+ */
+export async function getNotificationPreferences(
+  userId: string
+): Promise<NotificationPreferences | null> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.NOTIFICATION_PREFERENCES], 'readonly');
+  const store = transaction.objectStore(STORES.NOTIFICATION_PREFERENCES);
+  const prefs = await promisifyRequest(store.get(userId));
+
+  if (!prefs) {
+    // Return default preferences if not set
+    return {
+      user_id: userId,
+      expense_shared: true,
+      expense_updated: true,
+      settlement_requested: true,
+    };
+  }
+
+  return prefs;
+}
+
+/**
+ * Update notification preferences for a user
+ */
+export async function updateNotificationPreferences(
+  userId: string,
+  preferences: Partial<Omit<NotificationPreferences, 'user_id'>>
+): Promise<void> {
+  const db = await getDatabase();
+
+  // Get existing preferences or create new ones
+  const existing = await getNotificationPreferences(userId);
+
+  const updated: NotificationPreferences = {
+    user_id: userId,
+    expense_shared: preferences.expense_shared ?? existing?.expense_shared ?? true,
+    expense_updated: preferences.expense_updated ?? existing?.expense_updated ?? true,
+    settlement_requested: preferences.settlement_requested ?? existing?.settlement_requested ?? true,
+  };
+
+  const transaction = db.transaction([STORES.NOTIFICATION_PREFERENCES], 'readwrite');
+  const store = transaction.objectStore(STORES.NOTIFICATION_PREFERENCES);
+  await promisifyRequest(store.put(updated));
+}

@@ -8,7 +8,7 @@
 
 // Database configuration
 const DB_NAME = 'splitwiser-offline';
-const DB_VERSION = 7; // Incremented for receipt_urls field in expenses
+const DB_VERSION = 8; // Incremented for notification_preferences store
 
 // Store names matching our schema
 export const STORES = {
@@ -24,6 +24,7 @@ export const STORES = {
   TEMPLATE_PARTICIPANTS: 'template_participants', // For template participant mappings
   PARTICIPANTS: 'participants', // For offline-created participants
   CUSTOM_CATEGORIES: 'custom_categories', // For user-created expense categories
+  NOTIFICATION_PREFERENCES: 'notification_preferences', // For user notification preferences
 } as const;
 
 /**
@@ -130,6 +131,11 @@ export function initDatabase(): Promise<IDBDatabase> {
         customCategoriesStore.createIndex('user_id', 'user_id', { unique: false });
         customCategoriesStore.createIndex('is_deleted', 'is_deleted', { unique: false });
         customCategoriesStore.createIndex('sort_order', 'sort_order', { unique: false });
+      }
+
+      // Notification preferences store (v8)
+      if (!db.objectStoreNames.contains(STORES.NOTIFICATION_PREFERENCES)) {
+        db.createObjectStore(STORES.NOTIFICATION_PREFERENCES, { keyPath: 'user_id' });
       }
     };
   });

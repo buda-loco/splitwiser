@@ -23,8 +23,8 @@ async function getNotificationPreferences(userId: string): Promise<{
 } | null> {
   try {
     const db = await getDatabase();
-    const transaction = db.transaction(['notification_preferences'], 'readonly');
-    const store = transaction.objectStore('notification_preferences');
+    const transaction = db.transaction([STORES.NOTIFICATION_PREFERENCES], 'readonly');
+    const store = transaction.objectStore(STORES.NOTIFICATION_PREFERENCES);
     const prefs = await promisifyRequest(store.get(userId));
 
     if (!prefs) {

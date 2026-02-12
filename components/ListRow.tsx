@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ReactNode } from 'react';
 
 interface ListRowProps {
-  title: string;
+  title?: string;
   subtitle?: string | ReactNode;
   value?: string | ReactNode;
   leftIcon?: ReactNode;
@@ -13,6 +13,7 @@ interface ListRowProps {
   onClick?: () => void;
   href?: string;
   className?: string;
+  children?: ReactNode;
 }
 
 export function ListRow({
@@ -24,6 +25,7 @@ export function ListRow({
   onClick,
   href,
   className = '',
+  children,
 }: ListRowProps) {
   const isInteractive = !!onClick || !!href;
 
@@ -38,41 +40,47 @@ export function ListRow({
         ${className}
       `}
     >
-      {/* Left section: icon + title/subtitle */}
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        {leftIcon && <div className="flex-shrink-0">{leftIcon}</div>}
+      {children ? (
+        children
+      ) : (
+        <>
+          {/* Left section: icon + title/subtitle */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {leftIcon && <div className="flex-shrink-0">{leftIcon}</div>}
 
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
-          <span className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-            {title}
-          </span>
-          {subtitle && (
-            <div className="text-sm text-ios-gray dark:text-gray-400">
-              {typeof subtitle === 'string' ? (
-                <span className="truncate">{subtitle}</span>
-              ) : (
-                subtitle
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <span className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                {title}
+              </span>
+              {subtitle && (
+                <div className="text-sm text-ios-gray dark:text-gray-400">
+                  {typeof subtitle === 'string' ? (
+                    <span className="truncate">{subtitle}</span>
+                  ) : (
+                    subtitle
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* Right section: value + chevron */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {value && (
-          <div className="text-gray-900 dark:text-gray-100">
-            {typeof value === 'string' ? (
-              <span className="font-medium">{value}</span>
-            ) : (
-              value
+          {/* Right section: value + chevron */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {value && (
+              <div className="text-gray-900 dark:text-gray-100">
+                {typeof value === 'string' ? (
+                  <span className="font-medium">{value}</span>
+                ) : (
+                  value
+                )}
+              </div>
+            )}
+            {showChevron && (
+              <span className="text-xl text-ios-gray dark:text-gray-400">›</span>
             )}
           </div>
-        )}
-        {showChevron && (
-          <span className="text-xl text-ios-gray dark:text-gray-400">›</span>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 

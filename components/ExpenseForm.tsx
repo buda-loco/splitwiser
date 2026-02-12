@@ -628,6 +628,58 @@ export function ExpenseForm({
         )}
       </div>
 
+      {/* Receipt Upload */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Receipts (optional)
+        </label>
+        <ReceiptUpload
+          expenseId={tempExpenseId}
+          onUpload={handleReceiptUpload}
+          existingReceipts={[]}
+        />
+
+        {/* Receipt thumbnails grid */}
+        {receiptUrls.length > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            <AnimatePresence mode="popLayout">
+              {receiptUrls.map((url, index) => (
+                <motion.div
+                  key={url}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                  className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 shadow-md"
+                >
+                  {/* Thumbnail image */}
+                  <img
+                    src={url}
+                    alt={`Receipt ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+
+                  {/* Remove button */}
+                  <button
+                    type="button"
+                    onClick={() => handleReceiptRemove(index)}
+                    className="absolute top-2 right-2 w-6 h-6 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {receiptUrls.length > 0 && (
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            {receiptUrls.length} / 5 receipts uploaded
+          </p>
+        )}
+      </div>
+
       {/* Date */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
