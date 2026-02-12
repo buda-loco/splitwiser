@@ -66,11 +66,11 @@ export default function AcceptPoliciesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center p-4 pt-safe-top pb-safe-bottom">
+    <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center px-4 pt-safe-top pb-safe-bottom">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-lg w-full"
+        className="max-w-md w-full"
       >
         {/* Icon */}
         <div className="flex justify-center mb-6">

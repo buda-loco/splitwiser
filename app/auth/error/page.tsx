@@ -1,7 +1,7 @@
 export default function AuthErrorPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-5 pt-safe-top pb-safe-bottom bg-white dark:bg-black">
-      <div className="w-full max-w-[400px] text-center">
+    <div className="min-h-screen flex items-center justify-center px-4 pt-safe-top pb-safe-bottom bg-white dark:bg-black">
+      <div className="w-full max-w-md text-center">
         <h1 className="text-[28px] font-semibold mb-2 text-red-800 dark:text-red-400">
           Authentication Error
         </h1>

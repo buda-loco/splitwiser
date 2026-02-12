@@ -84,8 +84,8 @@ export default function DevLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-5 pt-safe-top pb-safe-bottom bg-white dark:bg-black">
-      <div className="w-full max-w-[400px]">
+    <div className="min-h-screen flex items-center justify-center px-4 pt-safe-top pb-safe-bottom bg-white dark:bg-black">
+      <div className="w-full max-w-md">
         <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
           <p className="text-sm text-amber-800 dark:text-amber-200">
             ⚠️ <strong>Dev/Testing Only</strong>

@@ -45,8 +45,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-5 pt-safe-top pb-safe-bottom bg-white dark:bg-black">
-      <div className="w-full max-w-[400px]">
+    <div className="min-h-screen flex items-center justify-center px-4 pt-safe-top pb-safe-bottom bg-white dark:bg-black">
+      <div className="w-full max-w-md">
         <h1 className="text-[28px] font-semibold mb-2 text-center text-gray-900 dark:text-white">
           Welcome to Splitwiser
         </h1>

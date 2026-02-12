@@ -24,8 +24,8 @@ export default async function InvitePage({ params }: InvitePageProps) {
   // Invalid or expired token
   if (!invite || !invite.isValid) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-5 pt-safe-top pb-safe-bottom bg-gray-50 dark:bg-black">
-        <div className="max-w-[400px] w-full bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 pt-safe-top pb-safe-bottom bg-gray-50 dark:bg-black">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm text-center">
           <div className="text-5xl mb-4">&#9888;&#65039;</div>
           <h1 className="text-2xl font-semibold mb-3 text-gray-900 dark:text-white">
             Invalid Invite Link
@@ -42,8 +42,8 @@ export default async function InvitePage({ params }: InvitePageProps) {
   const { participant } = invite;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-5 pt-safe-top pb-safe-bottom bg-gray-50 dark:bg-black">
-      <div className="max-w-[400px] w-full bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 pt-safe-top pb-safe-bottom bg-gray-50 dark:bg-black">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm">
         <div className="text-5xl text-center mb-4">&#128075;</div>
 
         <h1 className="text-[28px] font-semibold mb-2 text-gray-900 dark:text-white text-center">
