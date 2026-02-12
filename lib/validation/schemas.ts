@@ -190,6 +190,26 @@ export const templateSchema = z.object({
 });
 
 // ============================================================================
+// PROFILE SCHEMAS
+// ============================================================================
+
+export const profileSchema = z.object({
+  display_name: z.string()
+    .min(1, 'Name is required')
+    .max(50, 'Name too long (max 50 characters)')
+    .trim(),
+  avatar_url: z.string()
+    .url('Invalid avatar URL')
+    .optional()
+    .nullable(),
+  currency_preference: z.string()
+    .length(3, 'Currency must be 3-letter ISO code')
+    .regex(/^[A-Z]{3}$/, 'Currency must be uppercase ISO code'),
+});
+
+export const profileUpdateSchema = profileSchema.partial();
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
@@ -200,3 +220,5 @@ export type SettlementInput = z.infer<typeof settlementSchema>;
 export type TagInput = z.infer<typeof tagSchema>;
 export type InviteInput = z.infer<typeof inviteSchema>;
 export type TemplateInput = z.infer<typeof templateSchema>;
+export type ProfileInput = z.infer<typeof profileSchema>;
+export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
