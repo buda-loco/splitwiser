@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { getAllExpenses, getAllSettlements } from '@/lib/db/stores';
+import { getExpenses, getSettlements } from '@/lib/db/stores';
 import { motion } from 'framer-motion';
 import { Download, FileText, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -28,8 +28,8 @@ export default function ExportDataPage() {
 
     try {
       // Fetch all user data
-      const expenses = await getAllExpenses();
-      const settlements = await getAllSettlements();
+      const expenses = await getExpenses();
+      const settlements = await getSettlements();
 
       // Filter to only user's data
       const userExpenses = expenses.filter(
