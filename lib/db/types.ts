@@ -13,6 +13,7 @@ export type Profile = {
   display_name: string;
   avatar_url: string | null;
   currency_preference: string;
+  deletion_scheduled_at: string | null;
   created_at: string;
   updated_at: string;
 };
