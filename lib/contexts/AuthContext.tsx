@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getCurrentUserProfile } from '@/lib/actions/user';
+import { checkAndExecuteScheduledDeletion } from '@/lib/actions/deleteAccount';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/db/types';
 
@@ -43,9 +44,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
 
     // Get initial session
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       setUser(user);
       if (user) {
+        // Check if scheduled deletion should execute
+        const wasDeleted = await checkAndExecuteScheduledDeletion(user.id);
+
+        if (wasDeleted) {
+          // User was deleted, sign out
+          await supabase.auth.signOut();
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+
         // Fetch profile for authenticated user
         getCurrentUserProfile().then((profile) => {
           setProfile(profile);

@@ -35,6 +35,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased pb-16"> {/* pb-16 for bottom nav height, nav handles safe area */}
         <AuthProvider>
+          {/* Scheduled deletion warning banner */}
+          <ScheduledDeletionBanner />
+
           {/* Content area with bottom padding for fixed nav */}
           <SwipeNavigation>
             <div className="min-h-screen">
