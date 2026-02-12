@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { TemplateForm } from '@/components/TemplateForm';
+import { PageTransition } from '@/components/PageTransition';
 import { getTemplateById, deleteTemplate } from '@/lib/db/stores';
 import type { TemplateFormData } from '@/components/TemplateForm';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
@@ -103,9 +104,11 @@ export default function EditTemplatePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-ios-gray6 dark:bg-black flex items-center justify-center">
-        <p className="text-ios-gray dark:text-ios-gray3">Loading template...</p>
-      </div>
+      <PageTransition>
+        <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+          <p className="text-ios-gray dark:text-ios-gray3">Loading template...</p>
+        </div>
+      </PageTransition>
     );
   }
 
@@ -114,17 +117,19 @@ export default function EditTemplatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-ios-gray6 dark:bg-black pb-safe">
-      <div className="max-w-2xl mx-auto px-4 pt-safe">
-        <h1 className="text-2xl font-bold text-ios-black dark:text-white py-4 mb-4">
-          Edit Template
-        </h1>
-        <TemplateForm
-          initialData={initialData}
-          onSubmit={handleSubmit}
-          onCancel={() => router.push('/templates')}
-        />
+    <PageTransition>
+      <div className="min-h-screen bg-white dark:bg-black pt-safe-top pb-safe">
+        <div className="max-w-md mx-auto px-4 py-6">
+          <h1 className="text-2xl font-bold text-ios-black dark:text-white mb-4">
+            Edit Template
+          </h1>
+          <TemplateForm
+            initialData={initialData}
+            onSubmit={handleSubmit}
+            onCancel={() => router.push('/templates')}
+          />
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }
