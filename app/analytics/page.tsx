@@ -60,7 +60,7 @@ export default function AnalyticsPage() {
   return (
     <ProtectedRoute>
       <PageTransition>
-        <div className="min-h-screen bg-ios-gray-light dark:bg-black pb-safe pb-24">
+        <div className="min-h-screen bg-ios-gray-light dark:bg-black pb-safe">
           {/* Sticky header */}
           <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
             <div className="px-4 py-3 flex items-center gap-3">
