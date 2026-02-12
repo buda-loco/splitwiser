@@ -7,12 +7,14 @@ import { SplitEqual } from './SplitEqual';
 import { SplitByPercentage } from './SplitByPercentage';
 import { SplitByShares } from './SplitByShares';
 import { TagInput } from './TagInput';
+import { CategoryPicker } from './CategoryPicker';
 import { detectCurrencyFromLocation } from '@/lib/currency/geolocation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useTemplates } from '@/hooks/useTemplates';
 import { getTemplateById } from '@/lib/db/stores';
 import type { ExpenseSplit } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
+import { CategoryType, getCategoryById } from '@/lib/types/category';
 
 type SplitMethod = 'equal' | 'percentage' | 'shares' | 'exact';
 
@@ -23,7 +25,7 @@ export type ExpenseFormData = {
   amount: number;
   currency: string;
   description: string;
-  category: string;
+  category: string; // category_id as string (CategoryType enum value)
   expense_date: string;
   participants: ParticipantWithDetails[];
   splits: ExpenseSplit[];
@@ -69,7 +71,16 @@ export function ExpenseForm({
   const [currency, setCurrency] = useState(initialData?.currency || 'AUD');
   const [currencyAutoDetected, setCurrencyAutoDetected] = useState(false);
   const [description, setDescription] = useState(initialData?.description || '');
-  const [category, setCategory] = useState(initialData?.category || '');
+  // Backward compatibility: Map old free-text category to CategoryType or default to null
+  const [category, setCategory] = useState<string | null>(() => {
+    if (!initialData?.category) return null;
+    // Check if it's already a valid CategoryType
+    if (Object.values(CategoryType).includes(initialData.category as CategoryType)) {
+      return initialData.category;
+    }
+    // Old free-text category, map to "Other"
+    return CategoryType.OTHER;
+  });
   const [expenseDate, setExpenseDate] = useState(
     initialData?.expense_date || new Date().toISOString().split('T')[0]
   );
@@ -229,7 +240,7 @@ export function ExpenseForm({
             amount: parseFloat(amount),
             currency,
             description,
-            category,
+            category: category || '', // category_id as string
             expense_date: expenseDate,
             participants,
             splits,
@@ -240,7 +251,7 @@ export function ExpenseForm({
           // Clear form after successful submission
           setAmount('');
           setDescription('');
-          setCategory('');
+          setCategory(null);
           setExpenseDate(new Date().toISOString().split('T')[0]);
           setParticipants([]);
           setSplits([]);
@@ -507,47 +518,15 @@ export function ExpenseForm({
       {/* Category */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Category
+          Category (optional)
         </label>
-        <motion.div
-          animate={shakeField === 'category' ? { x: [-10, 10, -10, 10, 0] } : {}}
-          transition={{ duration: 0.4 }}
-        >
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            onBlur={() => handleBlur('category')}
-            className={`w-full px-4 py-3 bg-ios-gray6 dark:bg-gray-800 rounded-xl border transition-colors ${
-              touched.category && errors.category
-                ? 'border-ios-red'
-                : 'border-transparent'
-            } focus:outline-none focus:ring-2 focus:ring-ios-blue focus:border-transparent text-base appearance-none ${
-              !category ? 'text-ios-gray' : ''
-            }`}
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238E8E93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 1rem center'
-            }}
-          >
-          <option value="" disabled>Select a category</option>
-          <option value="Food">Food</option>
-          <option value="Transport">Transport</option>
-          <option value="Accommodation">Accommodation</option>
-          <option value="Activities">Activities</option>
-          <option value="Other">Other</option>
-        </select>
-        </motion.div>
-        {touched.category && errors.category && (
-          <motion.p
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            role="alert"
-            className="mt-1.5 text-xs text-ios-red"
-          >
-            {errors.category}
-          </motion.p>
-        )}
+        <CategoryPicker
+          value={category}
+          onChange={(categoryId) => setCategory(categoryId)}
+        />
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          Helps organize expenses for analytics
+        </p>
       </div>
 
       {/* Date */}
