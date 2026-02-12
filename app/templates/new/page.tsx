@@ -8,6 +8,7 @@ import { AlertCircle } from 'lucide-react';
 import { createTemplate } from '@/lib/db/stores';
 import type { TemplateCreateInput } from '@/lib/db/types';
 import { useState } from 'react';
+import { PageTransition } from '@/components/PageTransition';
 
 /**
  * New Template Page
@@ -69,70 +70,71 @@ export default function NewTemplatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black pb-24">
-      {/* Header */}
-      <div className="pt-safe-top px-4 py-6 border-b border-ios-gray5 dark:border-gray-800">
-        <motion.h1
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-bold text-gray-900 dark:text-white"
-        >
-          New Template
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="mt-2 text-sm text-gray-600 dark:text-gray-400"
-        >
-          Create a reusable split configuration for common expenses
-        </motion.p>
-      </div>
-
-      {/* Form */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="max-w-md mx-auto px-4 py-6"
-      >
-        <TemplateForm
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-        />
-
-        {/* Error display */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
+    <PageTransition>
+      <div className="min-h-screen bg-white dark:bg-black pt-safe-top pb-safe">
+        <div className="max-w-md mx-auto px-4 py-6">
+          {/* Header */}
+          <motion.h1
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-ios-red rounded-xl"
+            className="text-3xl font-bold text-gray-900 dark:text-white"
           >
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-ios-red flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-ios-red mb-1">
-                  Failed to create template
-                </h3>
-                <p className="text-sm text-red-700 dark:text-red-300">
-                  {error.message}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Loading indicator */}
-        {isLoading && (
-          <motion.div
+            New Template
+          </motion.h1>
+          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-4 text-center text-sm text-ios-gray"
+            transition={{ delay: 0.1 }}
+            className="mt-2 mb-6 text-sm text-gray-600 dark:text-gray-400"
           >
-            Creating template...
+            Create a reusable split configuration for common expenses
+          </motion.p>
+
+          {/* Form */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <TemplateForm
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+            />
+
+            {/* Error display */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-ios-red rounded-xl"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-ios-red flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-ios-red mb-1">
+                      Failed to create template
+                    </h3>
+                    <p className="text-sm text-red-700 dark:text-red-300">
+                      {error.message}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Loading indicator */}
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-4 text-center text-sm text-ios-gray"
+              >
+                Creating template...
+              </motion.div>
+            )}
           </motion.div>
-        )}
-      </motion.div>
-    </div>
+        </div>
+      </div>
+    </PageTransition>
   );
 }
