@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getExpense, getExpenseParticipants, getExpenseSplits, getExpenseTags, addTagToExpense, removeTagFromExpense, getExpenseVersions, revertExpenseToVersion } from '@/lib/db/stores';
+import { getExpense, getExpenseParticipants, getExpenseSplits, getExpenseTags, addTagToExpense, removeTagFromExpense, getExpenseVersions, revertExpenseToVersion, updateExpense as updateExpenseStore } from '@/lib/db/stores';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import type { OfflineExpense, ExpenseParticipant, ExpenseSplit, OfflineExpenseVersion } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
 import { ExpenseForm, type ExpenseFormData } from './ExpenseForm';
+import { ReceiptGallery } from './ReceiptGallery';
 
 export function ExpenseDetail({ id }: { id: string }) {
   const router = useRouter();
@@ -53,7 +54,8 @@ export function ExpenseDetail({ id }: { id: string }) {
         currency: formData.currency,
         description: formData.description,
         category: formData.category,
-        expense_date: formData.expense_date
+        expense_date: formData.expense_date,
+        receipt_urls: formData.receipt_urls
       });
 
       // Update tags
@@ -133,6 +135,23 @@ export function ExpenseDetail({ id }: { id: string }) {
     }
   };
 
+  const handleReceiptDelete = async (url: string) => {
+    if (!expense) return;
+
+    try {
+      const updatedReceipts = (expense.receipt_urls || []).filter(r => r !== url);
+      const userId = 'temp-user-id'; // TODO: Get from auth context
+      await updateExpenseStore(id, { receipt_urls: updatedReceipts }, userId);
+
+      // Reload the expense data
+      const exp = await getExpense(id);
+      if (exp) setExpense(exp);
+    } catch (error) {
+      console.error('Failed to delete receipt:', error);
+      alert('Failed to delete receipt. Please try again.');
+    }
+  };
+
   if (loading) {
     return <div className="p-4 text-center text-gray-500">Loading...</div>;
   }
@@ -161,7 +180,8 @@ export function ExpenseDetail({ id }: { id: string }) {
             expense_date: expense.expense_date,
             participants: participantsWithDetails,
             splits,
-            tags
+            tags,
+            receipt_urls: expense.receipt_urls
           }}
           onSubmit={handleUpdate}
           onCancel={() => setIsEditing(false)}
@@ -232,6 +252,17 @@ export function ExpenseDetail({ id }: { id: string }) {
           </div>
         </div>
       </div>
+
+      {/* Receipt Gallery */}
+      {expense.receipt_urls && expense.receipt_urls.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
+          <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Receipts</h2>
+          <ReceiptGallery
+            receiptUrls={expense.receipt_urls}
+            onDelete={handleReceiptDelete}
+          />
+        </div>
+      )}
 
       {/* Participants */}
       {participants.length > 0 && (
