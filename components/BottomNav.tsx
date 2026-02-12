@@ -3,12 +3,13 @@
 import { motion } from 'framer-motion'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Receipt, Scale, CheckCircle, Settings } from 'lucide-react'
+import { Receipt, Scale, CheckCircle, BarChart3, Settings } from 'lucide-react'
 
 const tabs = [
   { id: 'expenses', label: 'Expenses', path: '/', icon: Receipt },
   { id: 'balances', label: 'Balances', path: '/balances', icon: Scale },
   { id: 'settlements', label: 'Settlements', path: '/settlements', icon: CheckCircle },
+  { id: 'analytics', label: 'Analytics', path: '/analytics', icon: BarChart3 },
   { id: 'settings', label: 'Settings', path: '/settings', icon: Settings },
 ]
 
