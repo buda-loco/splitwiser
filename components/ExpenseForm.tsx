@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Zap } from 'lucide-react';
+import { Users, Zap, X, Bookmark } from 'lucide-react';
 import { ParticipantPicker } from './ParticipantPicker';
 import { SplitEqual } from './SplitEqual';
 import { SplitByPercentage } from './SplitByPercentage';
 import { SplitByShares } from './SplitByShares';
 import { TagInput } from './TagInput';
 import { CategoryPicker } from './CategoryPicker';
+import { ReceiptUpload } from './ReceiptUpload';
 import { detectCurrencyFromLocation } from '@/lib/currency/geolocation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useTemplates, useCategoryTemplates } from '@/hooks/useTemplates';
-import { getTemplateById } from '@/lib/db/stores';
+import { getTemplateById, createTemplate } from '@/lib/db/stores';
 import type { ExpenseSplit, TemplateParticipant } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
 import { CategoryType, getCategoryById } from '@/lib/types/category';
@@ -31,6 +32,7 @@ export type ExpenseFormData = {
   participants: ParticipantWithDetails[];
   splits: ExpenseSplit[];
   tags: string[];
+  receipt_urls?: string[]; // Supabase Storage URLs for receipt photos
   manual_exchange_rate?: {
     from_currency: string;
     to_currency: string;
@@ -86,6 +88,9 @@ export function ExpenseForm({
   const { templates } = useTemplates(user?.id || null);
   const { templates: categoryTemplates } = useCategoryTemplates(category, user?.id || null);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   // Participant and split state
   const [participants, setParticipants] = useState<ParticipantWithDetails[]>(initialData?.participants || []);
@@ -94,6 +99,10 @@ export function ExpenseForm({
 
   // Tags state
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
+
+  // Receipt URLs state
+  const [receiptUrls, setReceiptUrls] = useState<string[]>(initialData?.receipt_urls || []);
+  const [tempExpenseId] = useState(() => crypto.randomUUID()); // Temporary ID for receipt uploads
 
   // Manual exchange rate state
   const [showManualRate, setShowManualRate] = useState(false);
@@ -181,6 +190,21 @@ export function ExpenseForm({
     setTimeout(() => setShakeField(null), 500);
   };
 
+  // Handle receipt upload
+  const handleReceiptUpload = (fileUrl: string) => {
+    // Check max 5 receipts limit
+    if (receiptUrls.length >= 5) {
+      alert('Maximum 5 receipts per expense. Please remove one before adding another.');
+      return;
+    }
+    setReceiptUrls(prev => [...prev, fileUrl]);
+  };
+
+  // Handle receipt removal
+  const handleReceiptRemove = (index: number) => {
+    setReceiptUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,6 +271,7 @@ export function ExpenseForm({
             participants,
             splits,
             tags,
+            receipt_urls: receiptUrls,
             manual_exchange_rate
           });
 
@@ -258,6 +283,7 @@ export function ExpenseForm({
           setParticipants([]);
           setSplits([]);
           setTags([]);
+          setReceiptUrls([]);
           setManualRate('');
           setShowManualRate(false);
           setCurrencyAutoDetected(false);
@@ -351,6 +377,40 @@ export function ExpenseForm({
 
     // Auto-advance to splits step
     setStep('splits');
+  };
+
+  // Save current configuration as template
+  const saveAsTemplate = async () => {
+    if (!user || !templateName.trim() || participants.length < 2 || splits.length === 0) {
+      return;
+    }
+
+    setSavingTemplate(true);
+    try {
+      await createTemplate({
+        name: templateName.trim(),
+        split_type: splitMethod,
+        category_id: category,
+        created_by_user_id: user.id,
+        participants: splits.map(split => ({
+          user_id: split.user_id,
+          participant_id: split.participant_id,
+          split_value: split.split_value
+        }))
+      });
+
+      // Show success feedback
+      alert('Template saved! You can reuse it from the templates page.');
+
+      // Reset modal state
+      setShowSaveTemplate(false);
+      setTemplateName('');
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      alert('Failed to save template. Please try again.');
+    } finally {
+      setSavingTemplate(false);
+    }
   };
 
   return (
@@ -725,6 +785,94 @@ export function ExpenseForm({
               Split amounts must total ${parseFloat(amount).toFixed(2)}
             </p>
           )}
+
+          {/* Save as template button (Step 3 only) */}
+          {step === 'splits' && participants.length >= 2 && splits.length > 0 && !showSaveTemplate && (
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => {
+                setTemplateName(description || '');
+                setShowSaveTemplate(true);
+              }}
+              className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border border-ios-gray4 dark:border-gray-700 rounded-lg text-ios-blue dark:text-blue-400 font-medium hover:bg-ios-blue/5 active:scale-95 transition-all"
+            >
+              <Bookmark className="w-4 h-4" />
+              <span>Save as template</span>
+            </motion.button>
+          )}
+
+          {/* Save as template modal */}
+          <AnimatePresence>
+            {showSaveTemplate && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-4 p-4 bg-ios-gray6 dark:bg-gray-800 rounded-xl border border-ios-gray4 dark:border-gray-700"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">Save as Template</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSaveTemplate(false);
+                      setTemplateName('');
+                    }}
+                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Template Name
+                    </label>
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      placeholder="e.g., Weekend Trip Split"
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-900 border border-ios-gray4 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-ios-blue text-base"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Category (optional)
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      {category ? getCategoryById(category as CategoryType)?.label || 'Selected' : 'None selected'}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSaveTemplate(false);
+                        setTemplateName('');
+                      }}
+                      className="flex-1 px-4 py-2.5 bg-ios-gray5 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium active:scale-95 transition-transform"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveAsTemplate}
+                      disabled={savingTemplate || !templateName.trim()}
+                      className="flex-1 px-4 py-2.5 bg-ios-blue text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"
+                    >
+                      {savingTemplate ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
 
