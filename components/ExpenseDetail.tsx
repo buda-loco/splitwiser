@@ -170,28 +170,26 @@ export function ExpenseDetail({ id }: { id: string }) {
     }));
 
     return (
-      <div className="max-w-md mx-auto p-4 pb-safe">
-        <ExpenseForm
-          initialData={{
-            amount: expense.amount,
-            currency: expense.currency,
-            description: expense.description,
-            category: expense.category || '',
-            expense_date: expense.expense_date,
-            participants: participantsWithDetails,
-            splits,
-            tags,
-            receipt_urls: expense.receipt_urls
-          }}
-          onSubmit={handleUpdate}
-          onCancel={() => setIsEditing(false)}
-        />
-      </div>
+      <ExpenseForm
+        initialData={{
+          amount: expense.amount,
+          currency: expense.currency,
+          description: expense.description,
+          category: expense.category || '',
+          expense_date: expense.expense_date,
+          participants: participantsWithDetails,
+          splits,
+          tags,
+          receipt_urls: expense.receipt_urls
+        }}
+        onSubmit={handleUpdate}
+        onCancel={() => setIsEditing(false)}
+      />
     );
   }
 
   return (
-    <div className="max-w-md mx-auto p-4 pb-safe">
+    <>
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <button
@@ -309,6 +307,6 @@ export function ExpenseDetail({ id }: { id: string }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
