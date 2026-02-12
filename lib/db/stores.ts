@@ -863,6 +863,19 @@ export async function createSettlement(
   const store = transaction.objectStore(STORES.SETTLEMENTS);
   await promisifyRequest(store.add(newSettlement));
 
+  // Trigger notification for settlement (async, don't block)
+  if (typeof window !== 'undefined' && newSettlement.to_user_id && newSettlement.from_user_id) {
+    import('@/lib/notifications/triggers').then(({ notifySettlementRequested }) => {
+      notifySettlementRequested(
+        id,
+        newSettlement.to_user_id,
+        newSettlement.from_user_id,
+        newSettlement.amount,
+        newSettlement.currency
+      ).catch(err => console.error('Error triggering settlement notification:', err));
+    }).catch(err => console.error('Failed to load notification triggers:', err));
+  }
+
   return id;
 }
 
