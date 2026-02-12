@@ -162,7 +162,16 @@ Every expense change creates an `expense_version` record with:
 - Complete dark mode system
 - Polished animations (stagger, shake, loading spinners)
 - **Zero emojis** - All Lucide icons
-- Participant name persistence fix
+- Bottom navbar with accessibility
+
+### ✅ Phase 11: Critical Fixes & Security (7 tasks)
+- **Participant name persistence** - Immediate IndexedDB save on creation
+- **Page scrolling fixes** - dragDirectionLock, touchAction: 'pan-y' for iOS
+- **Bottom nav indicator alignment** - Framer Motion values instead of transforms
+- **Security headers** - CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
+- **Input validation** - Zod schemas for all data types (expenses, splits, settlements, etc.)
+- **Data export (GDPR)** - CSV download for expenses and settlements (Article 20 compliance)
+- **Financial integrity** - Validation that splits sum to expense total (±0.01 tolerance)
 
 ---
 
@@ -285,6 +294,10 @@ npx playwright test --debug    # Debug mode
 3. **iOS-native feel** - Smooth animations, gestures, proper safe areas
 4. **TypeScript strict mode** - All code must pass type checking
 5. **Optimistic updates** - UI responds immediately, sync in background
+6. **Security headers** - CSP, X-Frame-Options, X-Content-Type-Options required (✅ Phase 11)
+7. **Input validation** - All user inputs validated with Zod schemas (✅ Phase 11)
+8. **GDPR compliance** - Data export, right to erasure, privacy policy (🚧 In progress)
+9. **Financial integrity** - Splits must sum to expense total (±0.01) (✅ Phase 11)
 
 ### Design Patterns
 - **Use hooks for state** - `useBalances`, `useOptimisticMutation`, etc.
@@ -315,6 +328,7 @@ npx playwright test --debug    # Debug mode
 - `lib/balances/calculator.ts` - Balance calculation algorithm
 - `hooks/useOptimisticMutation.ts` - Offline-first mutation pattern
 - `lib/offline/operations.ts` - Sync queue management
+- `lib/validation/schemas.ts` - Zod validation schemas for all data types (Phase 11)
 
 ### Main UI Components
 - `components/ExpenseForm.tsx` - 3-step expense creation (700+ lines)
@@ -326,7 +340,7 @@ npx playwright test --debug    # Debug mode
 - `tailwind.config.ts` - iOS design tokens and dark mode
 - `lib/db/indexeddb.ts` - Database initialization (v5, 11 stores)
 - `middleware.ts` - Auth session refresh
-- `next.config.mjs` - PWA and build settings
+- `next.config.ts` - Security headers, PWA settings (Phase 11 security updates)
 
 ---
 
