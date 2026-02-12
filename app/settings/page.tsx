@@ -41,16 +41,17 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Settings Options (placeholder for future) */}
+            {/* Settings Options */}
             <div className="mb-6">
               <h2 className="text-sm font-semibold text-ios-gray mb-2 px-4">
-                Options
+                Data & Privacy
               </h2>
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
                 <ListRow
-                  title="Settings"
-                  subtitle="Coming in later phases"
-                  showChevron={false}
+                  title="Export Your Data"
+                  subtitle="Download all your data (GDPR)"
+                  onClick={() => router.push('/settings/export')}
+                  showChevron={true}
                 />
               </div>
             </div>

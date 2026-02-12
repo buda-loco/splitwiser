@@ -209,6 +209,21 @@ export function ExpenseForm({
             }
           : null;
 
+        // CRITICAL: Validate that splits sum to total amount (data integrity)
+        const totalAmount = parseFloat(amount);
+        const splitsSum = splits.reduce((sum, split) => sum + split.amount, 0);
+        const difference = Math.abs(splitsSum - totalAmount);
+
+        // Allow 0.01 difference for rounding errors
+        if (difference > 0.01) {
+          alert(
+            `Error: Splits sum (${splitsSum.toFixed(2)}) does not match expense total (${totalAmount.toFixed(2)}). ` +
+            `Please adjust your splits.`
+          );
+          setIsSubmitting(false);
+          return;
+        }
+
         try {
           await onSubmit({
             amount: parseFloat(amount),

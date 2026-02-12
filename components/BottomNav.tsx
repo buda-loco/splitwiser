@@ -59,7 +59,11 @@ export function BottomNav() {
               {isActive && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-ios-blue rounded-full shadow-[0_0_8px_rgba(0,122,255,0.5)]"
+                  className="absolute -top-0.5 w-12 h-0.5 bg-ios-blue rounded-full shadow-[0_0_8px_rgba(0,122,255,0.5)]"
+                  style={{
+                    left: '50%',
+                    x: '-50%', // Use motion value instead of Tailwind transform
+                  }}
                   transition={{ type: 'spring', stiffness: 400, damping: 28 }}
                 />
               )}

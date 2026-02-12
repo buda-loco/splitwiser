@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useParticipants, type ParticipantWithDetails } from '@/hooks/useParticipants';
 import { useTagSuggestions } from '@/hooks/useTagSuggestions';
+import { saveParticipant } from '@/lib/db/stores';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface ParticipantPickerProps {
   selected: ParticipantWithDetails[];
@@ -25,6 +27,7 @@ interface ParticipantPickerProps {
 export function ParticipantPicker({ selected, onChange, selectedTags, singleSelect }: ParticipantPickerProps) {
   const { recent, frequent, loading } = useParticipants();
   const { suggestedParticipants: tagSuggestions } = useTagSuggestions(selectedTags || []);
+  const { user } = useAuth();
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [newParticipantName, setNewParticipantName] = useState('');
 
@@ -59,16 +62,31 @@ export function ParticipantPicker({ selected, onChange, selectedTags, singleSele
     }
   };
 
-  const handleAddNew = () => {
-    if (!newParticipantName.trim()) return;
+  const handleAddNew = async () => {
+    if (!newParticipantName.trim() || !user) return;
 
     // Create new participant (non-registered)
+    const participantId = crypto.randomUUID();
     const newParticipant: ParticipantWithDetails = {
-      participant_id: crypto.randomUUID(),
+      participant_id: participantId,
       user_id: null,
       name: newParticipantName.trim(),
       email: null,
     };
+
+    // Immediately save to IndexedDB so it persists
+    try {
+      await saveParticipant({
+        id: participantId,
+        name: newParticipantName.trim(),
+        email: null,
+        phone: null,
+        created_by_user_id: user.id,
+      });
+    } catch (error) {
+      console.error('Failed to save participant:', error);
+      // Still add to UI even if save fails - expense creation will retry
+    }
 
     if (singleSelect) {
       onChange([newParticipant]);

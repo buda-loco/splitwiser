@@ -37,12 +37,15 @@ export function SwipeNavigation({ children }: SwipeNavigationProps) {
   return (
     <motion.div
       drag="x"
+      dragDirectionLock={true} // Prevent diagonal dragging
       dragConstraints={{ left: 0, right: 300 }}
       dragElastic={{ left: 0, right: 0.3 }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      style={{ position: 'relative' }}
-      className="touch-pan-y" // Allow vertical scrolling
+      style={{
+        position: 'relative',
+        touchAction: 'pan-y', // Allow vertical scrolling, prevent horizontal
+      }}
     >
       {/* Gradient overlay - shows when dragging */}
       {isDragging && (
