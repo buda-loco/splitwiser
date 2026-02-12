@@ -1056,6 +1056,7 @@ export async function createTemplate(template: TemplateCreateInput): Promise<Off
     id: crypto.randomUUID(),
     name: template.name,
     split_type: template.split_type,
+    category_id: template.category_id || null,
     created_by_user_id: template.created_by_user_id,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -1099,6 +1100,22 @@ export async function getTemplatesByUser(userId?: string): Promise<OfflineSplitT
 }
 
 /**
+ * Get templates by category ID
+ */
+export async function getCategoryTemplates(categoryId: string, userId?: string): Promise<OfflineSplitTemplate[]> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.SPLIT_TEMPLATES], 'readonly');
+  const store = transaction.objectStore(STORES.SPLIT_TEMPLATES);
+  const allTemplates = await promisifyRequest(store.getAll());
+
+  // Filter by category and optionally by user
+  return allTemplates.filter(t =>
+    t.category_id === categoryId &&
+    (!userId || t.created_by_user_id === userId)
+  );
+}
+
+/**
  * Get template by ID with participants
  */
 export async function getTemplateById(templateId: string): Promise<{ template: OfflineSplitTemplate; participants: TemplateParticipant[] } | null> {
@@ -1118,9 +1135,9 @@ export async function getTemplateById(templateId: string): Promise<{ template: O
 }
 
 /**
- * Update template (name or split_type only)
+ * Update template (name, split_type, or category_id)
  */
-export async function updateTemplate(templateId: string, updates: { name?: string; split_type?: SplitTemplate['split_type'] }): Promise<void> {
+export async function updateTemplate(templateId: string, updates: { name?: string; split_type?: SplitTemplate['split_type']; category_id?: string | null }): Promise<void> {
   const db = await getDatabase();
   const transaction = db.transaction([STORES.SPLIT_TEMPLATES], 'readwrite');
   const store = transaction.objectStore(STORES.SPLIT_TEMPLATES);
@@ -1162,4 +1179,141 @@ export async function deleteTemplate(templateId: string): Promise<void> {
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(new Error('Transaction aborted'));
   });
+}
+
+// =====================================================
+// Custom Category Operations
+// =====================================================
+
+/**
+ * Create a new custom category
+ */
+export async function createCustomCategory(
+  userId: string,
+  category: { name: string; icon: string; color: string }
+): Promise<string> {
+  const db = await getDatabase();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  // Get current max sort_order for this user
+  const existingCategories = await getCustomCategories(userId);
+  const maxSortOrder = existingCategories.reduce((max, cat) => Math.max(max, cat.sort_order), 0);
+
+  const newCategory = {
+    id,
+    user_id: userId,
+    name: category.name,
+    icon: category.icon,
+    color: category.color,
+    sort_order: maxSortOrder + 1,
+    created_at: now,
+    is_deleted: false,
+  };
+
+  const transaction = db.transaction([STORES.CUSTOM_CATEGORIES], 'readwrite');
+  const store = transaction.objectStore(STORES.CUSTOM_CATEGORIES);
+  await promisifyRequest(store.add(newCategory));
+
+  return id;
+}
+
+/**
+ * Get all custom categories for a user (active only, sorted by sort_order)
+ */
+export async function getCustomCategories(userId: string): Promise<Array<{
+  id: string;
+  user_id: string;
+  name: string;
+  icon: string;
+  color: string;
+  sort_order: number;
+  created_at: string;
+  is_deleted: boolean;
+}>> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.CUSTOM_CATEGORIES], 'readonly');
+  const store = transaction.objectStore(STORES.CUSTOM_CATEGORIES);
+  const userIndex = store.index('user_id');
+
+  const allCategories = await promisifyRequest(userIndex.getAll(userId));
+
+  // Filter out deleted and sort by sort_order
+  return allCategories
+    .filter(cat => !cat.is_deleted)
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+/**
+ * Update a custom category
+ */
+export async function updateCustomCategory(
+  categoryId: string,
+  updates: { name?: string; icon?: string; color?: string; sort_order?: number }
+): Promise<void> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.CUSTOM_CATEGORIES], 'readwrite');
+  const store = transaction.objectStore(STORES.CUSTOM_CATEGORIES);
+
+  const category = await promisifyRequest(store.get(categoryId));
+  if (!category) throw new Error('Category not found');
+
+  const updated = {
+    ...category,
+    ...updates,
+  };
+
+  await promisifyRequest(store.put(updated));
+}
+
+/**
+ * Delete a custom category (soft delete)
+ */
+export async function deleteCustomCategory(categoryId: string): Promise<void> {
+  const db = await getDatabase();
+  const transaction = db.transaction([STORES.CUSTOM_CATEGORIES], 'readwrite');
+  const store = transaction.objectStore(STORES.CUSTOM_CATEGORIES);
+
+  const category = await promisifyRequest(store.get(categoryId));
+  if (!category) throw new Error('Category not found');
+
+  const updated = {
+    ...category,
+    is_deleted: true,
+  };
+
+  await promisifyRequest(store.put(updated));
+}
+
+/**
+ * Get merged list of predefined + custom categories for picker
+ * Returns predefined categories followed by custom categories
+ */
+export async function getCategoriesForPicker(userId: string): Promise<Array<{
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  isCustom: boolean;
+}>> {
+  const { PREDEFINED_CATEGORIES } = await import('../types/category');
+  const customCategories = await getCustomCategories(userId);
+
+  const predefined = PREDEFINED_CATEGORIES.map(cat => ({
+    id: cat.id,
+    label: cat.label,
+    icon: cat.icon,
+    color: cat.color,
+    isCustom: false,
+  }));
+
+  const custom = customCategories.map(cat => ({
+    id: cat.id,
+    label: cat.name,
+    icon: cat.icon,
+    color: cat.color,
+    isCustom: true,
+  }));
+
+  return [...predefined, ...custom];
 }

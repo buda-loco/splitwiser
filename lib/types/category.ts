@@ -104,3 +104,17 @@ export function getCategoryById(id: CategoryType | string | null): Category | un
   if (!id) return undefined;
   return PREDEFINED_CATEGORIES.find(cat => cat.id === id);
 }
+
+/**
+ * Custom category definition for user-created categories
+ */
+export interface CustomCategory {
+  id: string; // UUID
+  user_id: string;
+  name: string;
+  icon: string; // Lucide icon name
+  color: string; // Tailwind color class
+  sort_order: number;
+  created_at: string;
+  is_deleted: boolean;
+}

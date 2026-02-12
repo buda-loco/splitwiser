@@ -8,7 +8,7 @@
 
 // Database configuration
 const DB_NAME = 'splitwiser-offline';
-const DB_VERSION = 5; // Incremented for participants store
+const DB_VERSION = 6; // Incremented for custom_categories store
 
 // Store names matching our schema
 export const STORES = {
@@ -23,6 +23,7 @@ export const STORES = {
   SPLIT_TEMPLATES: 'split_templates', // For reusable split configurations
   TEMPLATE_PARTICIPANTS: 'template_participants', // For template participant mappings
   PARTICIPANTS: 'participants', // For offline-created participants
+  CUSTOM_CATEGORIES: 'custom_categories', // For user-created expense categories
 } as const;
 
 /**
@@ -121,6 +122,14 @@ export function initDatabase(): Promise<IDBDatabase> {
         const participantsStore = db.createObjectStore(STORES.PARTICIPANTS, { keyPath: 'id' });
         participantsStore.createIndex('created_by_user_id', 'created_by_user_id', { unique: false });
         participantsStore.createIndex('claimed_by_user_id', 'claimed_by_user_id', { unique: false });
+      }
+
+      // Custom categories store (v6)
+      if (!db.objectStoreNames.contains(STORES.CUSTOM_CATEGORIES)) {
+        const customCategoriesStore = db.createObjectStore(STORES.CUSTOM_CATEGORIES, { keyPath: 'id' });
+        customCategoriesStore.createIndex('user_id', 'user_id', { unique: false });
+        customCategoriesStore.createIndex('is_deleted', 'is_deleted', { unique: false });
+        customCategoriesStore.createIndex('sort_order', 'sort_order', { unique: false });
       }
     };
   });
