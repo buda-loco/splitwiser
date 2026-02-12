@@ -70,7 +70,7 @@ export default function DeleteAccountPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black pb-24 pt-safe-top">
+    <div className="min-h-screen bg-white dark:bg-black pb-safe pt-safe-top">
       {/* Header */}
       <div className="px-4 py-6 border-b border-gray-200 dark:border-gray-800">
         <button
