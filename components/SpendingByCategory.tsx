@@ -183,7 +183,8 @@ export function SpendingByCategory({ expenses, currency }: SpendingByCategoryPro
 /**
  * Custom label renderer for pie chart
  */
-function renderPieLabel({ percentage }: { percentage: string }) {
+function renderPieLabel(props: any) {
+  const percentage = props.percent ? (props.percent * 100).toFixed(0) : '0';
   if (parseFloat(percentage) < 5) return null; // Hide small labels
   return `${percentage}%`;
 }

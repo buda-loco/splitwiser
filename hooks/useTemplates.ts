@@ -89,6 +89,7 @@ export function useCategoryTemplates(categoryId: string | null, userId: string |
     }
 
     async function loadCategoryTemplates() {
+      if (!categoryId || !userId) return; // Type guard
       try {
         const categoryTemplates = await getCategoryTemplates(categoryId, userId);
         // TODO: Sort by usage frequency when usage tracking is implemented

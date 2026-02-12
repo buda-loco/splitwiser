@@ -7,7 +7,7 @@ import { rateLimit, apiLimiter, authLimiter } from '@/lib/ratelimit/upstash'
  */
 function getIP(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for')
-  const ip = forwarded ? forwarded.split(',')[0].trim() : request.ip || '127.0.0.1'
+  const ip = forwarded ? forwarded.split(',')[0].trim() : '127.0.0.1'
   return ip
 }
 

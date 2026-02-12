@@ -154,63 +154,63 @@ export default function SearchPage() {
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
                 <AnimatePresence mode="popLayout">
                   {results.map((result, index) => (
-                    <motion.div
+                    <motion.button
                       key={result.expense.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ delay: Math.min(index * 0.05, 0.25) }}
+                      onClick={() => handleExpenseClick(result.expense.id)}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                     >
-                      <ListRow
-                        onClick={() => handleExpenseClick(result.expense.id)}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-3 w-full">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Receipt className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                              <p className="text-base font-medium text-gray-900 dark:text-white truncate">
-                                {result.matchedFields.includes('description')
-                                  ? highlightText(result.expense.description, currentQuery)
-                                  : result.expense.description}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {new Date(result.expense.expense_date).toLocaleDateString()}
-                              </span>
-
-                              {result.expense.category && (
-                                <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
-                                  {result.expense.category}
-                                </span>
-                              )}
-
-                              {/* Matched field badge */}
-                              <span className="text-xs px-2 py-0.5 bg-ios-blue/10 dark:bg-ios-blue/20 text-ios-blue dark:text-ios-blue-light rounded">
-                                Found in: {getMatchedFieldLabel(result.matchedFields)}
-                              </span>
-                            </div>
-
-                            {/* Show highlight text if different from description */}
-                            {result.highlightText !== result.expense.description && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">
-                                {result.matchedFields.includes('description')
-                                  ? result.highlightText
-                                  : highlightText(result.highlightText, currentQuery)}
-                              </p>
-                            )}
+                      <div className="flex items-start justify-between gap-3 w-full">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Receipt className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                            <p className="text-base font-medium text-gray-900 dark:text-white truncate">
+                              {result.matchedFields.includes('description')
+                                ? highlightText(result.expense.description, currentQuery)
+                                : result.expense.description}
+                            </p>
                           </div>
 
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(result.expense.expense_date).toLocaleDateString()}
+                            </span>
+
+                            {result.expense.category && (
+                              <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
+                                {result.expense.category}
+                              </span>
+                            )}
+
+                            {/* Matched field badge */}
+                            <span className="text-xs px-2 py-0.5 bg-ios-blue/10 dark:bg-ios-blue/20 text-ios-blue dark:text-ios-blue-light rounded">
+                              Found in: {getMatchedFieldLabel(result.matchedFields)}
+                            </span>
+                          </div>
+
+                          {/* Show highlight text if different from description */}
+                          {result.highlightText !== result.expense.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">
+                              {result.matchedFields.includes('description')
+                                ? result.highlightText
+                                : highlightText(result.highlightText, currentQuery)}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
                           <div className="flex-shrink-0 text-right">
                             <p className="text-base font-semibold text-gray-900 dark:text-white">
                               {result.expense.currency} {result.expense.amount.toFixed(2)}
                             </p>
                           </div>
+                          <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                         </div>
-                      </ListRow>
-                    </motion.div>
+                      </div>
+                    </motion.button>
                   ))}
                 </AnimatePresence>
               </div>
