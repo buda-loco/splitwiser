@@ -638,13 +638,30 @@ export async function createSplit(
 
 /**
  * Get all splits for an expense
+ * Enriches splits with participant names from Participants store
  */
-export async function getExpenseSplits(expense_id: string): Promise<ExpenseSplit[]> {
+export async function getExpenseSplits(expense_id: string): Promise<(ExpenseSplit & { name?: string })[]> {
   const db = await getDatabase();
-  const transaction = db.transaction([STORES.EXPENSE_SPLITS], 'readonly');
-  const store = transaction.objectStore(STORES.EXPENSE_SPLITS);
-  const index = store.index('expense_id');
-  return promisifyRequest(index.getAll(expense_id));
+  const transaction = db.transaction([STORES.EXPENSE_SPLITS, STORES.PARTICIPANTS], 'readonly');
+  const splitsStore = transaction.objectStore(STORES.EXPENSE_SPLITS);
+  const participantsStore = transaction.objectStore(STORES.PARTICIPANTS);
+  const index = splitsStore.index('expense_id');
+  const splits = await promisifyRequest(index.getAll(expense_id));
+
+  // Enrich with participant names from Participants store
+  const enrichedSplits = await Promise.all(
+    splits.map(async (split) => {
+      if (split.participant_id) {
+        const participant = await promisifyRequest(participantsStore.get(split.participant_id));
+        if (participant) {
+          return { ...split, name: participant.name };
+        }
+      }
+      return split;
+    })
+  );
+
+  return enrichedSplits;
 }
 
 /**

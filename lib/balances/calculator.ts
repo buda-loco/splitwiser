@@ -18,6 +18,40 @@ import { convertBalances } from '@/lib/currency/exchangeRates';
 import type { CurrencyCode } from '@/lib/currency/types';
 import { getParticipantDisplayName } from '@/lib/utils/display-name';
 import type { Settlement } from '@/lib/db/types';
+import { createClient } from '@/lib/supabase/client';
+
+/**
+ * Cache for user profile names to avoid repeated database queries
+ */
+const userNameCache = new Map<string, string>();
+
+/**
+ * Fetch user display name from Supabase profiles
+ */
+async function getUserDisplayName(userId: string): Promise<string> {
+  // Check cache first
+  if (userNameCache.has(userId)) {
+    return userNameCache.get(userId)!;
+  }
+
+  try {
+    const supabase = createClient();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', userId)
+      .single();
+
+    const displayName = profile?.display_name || `User ${userId.slice(0, 8)}`;
+    userNameCache.set(userId, displayName);
+    return displayName;
+  } catch (error) {
+    // Fallback to truncated ID if profile fetch fails
+    const fallback = `User ${userId.slice(0, 8)}`;
+    userNameCache.set(userId, fallback);
+    return fallback;
+  }
+}
 
 /**
  * Net balance result for global settlements
@@ -114,16 +148,20 @@ export async function calculateBalances(options?: {
       if (splitPersonId === payerId) continue;
 
       // Create person identifiers
+      const fromName = split.user_id
+        ? await getUserDisplayName(split.user_id)
+        : getParticipantDisplayName(split);
+
       const from: PersonIdentifier = {
         user_id: split.user_id,
         participant_id: split.participant_id,
-        name: getParticipantDisplayName(split),
+        name: fromName,
       };
 
       const to: PersonIdentifier = {
         user_id: payerId,
         participant_id: null, // Current implementation only supports user payers
-        name: getParticipantDisplayName({ user_id: payerId }),
+        name: await getUserDisplayName(payerId),
       };
 
       // Create person pair key for aggregation
