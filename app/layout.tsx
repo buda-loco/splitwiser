@@ -3,6 +3,8 @@ import Script from "next/script";
 import { BottomNav } from "@/components/BottomNav";
 import { SwipeNavigation } from "@/components/SwipeNavigation";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
+import { RateLimitToastContainer } from "@/components/RateLimitToast";
+import { ScheduledDeletionBanner } from "@/components/ScheduledDeletionBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -42,6 +44,9 @@ export default function RootLayout({
 
           {/* Bottom navigation */}
           <BottomNav />
+
+          {/* Rate limit toast notifications */}
+          <RateLimitToastContainer />
         </AuthProvider>
 
         {/* Service worker registration */}
