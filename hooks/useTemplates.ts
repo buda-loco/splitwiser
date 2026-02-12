@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTemplatesByUser, getTemplateById } from '@/lib/db/stores';
+import { getTemplatesByUser, getTemplateById, getCategoryTemplates } from '@/lib/db/stores';
 import type { OfflineSplitTemplate, TemplateParticipant } from '@/lib/db/types';
 
 export type TemplateWithParticipants = {
@@ -71,4 +71,42 @@ export function useTemplate(templateId: string | null) {
   }, [templateId]);
 
   return { data, loading };
+}
+
+/**
+ * Hook to fetch templates for a specific category
+ * Sorted by usage frequency (would need usage tracking)
+ */
+export function useCategoryTemplates(categoryId: string | null, userId: string | null) {
+  const [templates, setTemplates] = useState<OfflineSplitTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!categoryId || !userId) {
+      setTemplates([]);
+      setLoading(false);
+      return;
+    }
+
+    async function loadCategoryTemplates() {
+      try {
+        const categoryTemplates = await getCategoryTemplates(categoryId, userId);
+        // TODO: Sort by usage frequency when usage tracking is implemented
+        // For now, sort by most recently created
+        const sorted = categoryTemplates.sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setTemplates(sorted);
+      } catch (error) {
+        console.error('Failed to load category templates:', error);
+        setTemplates([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCategoryTemplates();
+  }, [categoryId, userId]);
+
+  return { templates, loading };
 }

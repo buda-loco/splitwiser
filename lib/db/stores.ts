@@ -132,7 +132,68 @@ export async function createExpense(
   return id;
 }
 
+/**
+ * Trigger notification for expense creation
+ * Should be called after expense is created and participants are added
+ */
+export async function triggerExpenseCreatedNotification(
+  expenseId: string,
+  createdByUserId: string
+): Promise<void> {
+  try {
+    // Get all participants for this expense
+    const participants = await getExpenseParticipants(expenseId);
 
+    // Extract user IDs (only registered users, not offline participants)
+    const participantUserIds = participants
+      .filter(p => p.user_id !== null)
+      .map(p => p.user_id as string);
+
+    if (participantUserIds.length === 0) {
+      return; // No registered users to notify
+    }
+
+    // Dynamically import notification triggers (client-side only)
+    if (typeof window !== 'undefined') {
+      const { notifyExpenseShared } = await import('@/lib/notifications/triggers');
+      await notifyExpenseShared(expenseId, participantUserIds, createdByUserId);
+    }
+  } catch (error) {
+    console.error('Error triggering expense created notification:', error);
+  }
+}
+
+/**
+ * Trigger notification for expense update
+ * Called automatically when expense is updated
+ */
+export async function triggerExpenseUpdatedNotification(
+  expenseId: string,
+  updatedByUserId: string,
+  previousAmount?: number
+): Promise<void> {
+  try {
+    // Get all participants for this expense
+    const participants = await getExpenseParticipants(expenseId);
+
+    // Extract user IDs (only registered users, not offline participants)
+    const participantUserIds = participants
+      .filter(p => p.user_id !== null)
+      .map(p => p.user_id as string);
+
+    if (participantUserIds.length === 0) {
+      return; // No registered users to notify
+    }
+
+    // Dynamically import notification triggers (client-side only)
+    if (typeof window !== 'undefined') {
+      const { notifyExpenseUpdated } = await import('@/lib/notifications/triggers');
+      await notifyExpenseUpdated(expenseId, participantUserIds, updatedByUserId, previousAmount);
+    }
+  } catch (error) {
+    console.error('Error triggering expense updated notification:', error);
+  }
+}
 
 /**
  * Get a single expense by ID
@@ -265,6 +326,13 @@ export async function updateExpense(
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(new Error('Transaction aborted'));
   });
+
+  // Trigger notification for expense update (async, don't block)
+  if (userId && typeof window !== 'undefined') {
+    triggerExpenseUpdatedNotification(id, userId, before.amount).catch(err =>
+      console.error('Error triggering expense updated notification:', err)
+    );
+  }
 }
 
 /**
