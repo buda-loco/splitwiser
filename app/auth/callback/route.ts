@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { type NextRequest } from 'next/server'
 import { autoClaimOnLogin } from '@/lib/actions/claim'
+import { getCurrentUserProfile } from '@/lib/actions/user'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -32,6 +33,13 @@ export async function GET(request: NextRequest) {
       if (needsManualClaim) {
         return NextResponse.redirect(new URL('/auth/claim', request.url))
       }
+    }
+
+    // Check if user has accepted policies
+    const profile = await getCurrentUserProfile()
+    if (profile && (!profile.privacy_policy_accepted_at || !profile.terms_accepted_at)) {
+      // Redirect to policy acceptance page
+      return NextResponse.redirect(new URL('/auth/accept-policies', request.url))
     }
 
     // Successful authentication, redirect to home

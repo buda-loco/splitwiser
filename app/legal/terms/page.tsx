@@ -172,7 +172,7 @@ export default function TermsOfServicePage() {
           </h2>
           <div className="space-y-3 text-gray-700 dark:text-gray-300">
             <p className="leading-relaxed">
-              <strong>Service Provided "As-Is":</strong> Splitwiser is provided without warranties of any kind.
+              <strong>Service Provided &ldquo;As-Is&rdquo;:</strong> Splitwiser is provided without warranties of any kind.
               We do not guarantee the service will be error-free, uninterrupted, or meet your specific needs.
             </p>
             <p className="leading-relaxed">

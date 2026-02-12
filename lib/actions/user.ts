@@ -114,3 +114,37 @@ export async function updateProfile(
 
   return data;
 }
+
+/**
+ * Accept privacy policy and terms of service
+ *
+ * @param userId - The UUID of the user accepting the policies
+ * @param version - The policy version being accepted (e.g., "1.0")
+ * @returns The updated profile
+ * @throws Error if the operation fails
+ */
+export async function acceptPolicies(
+  userId: string,
+  version: string = '1.0'
+): Promise<Profile> {
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      privacy_policy_accepted_at: now,
+      terms_accepted_at: now,
+      policy_version: version,
+    })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error accepting policies:', error);
+    throw new Error(`Failed to accept policies: ${error.message}`);
+  }
+
+  return data;
+}

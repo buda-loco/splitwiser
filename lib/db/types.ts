@@ -14,6 +14,9 @@ export type Profile = {
   avatar_url: string | null;
   currency_preference: string;
   deletion_scheduled_at: string | null;
+  privacy_policy_accepted_at: string | null;
+  terms_accepted_at: string | null;
+  policy_version: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -207,6 +210,7 @@ export type SplitTemplate = {
   id: string;
   name: string;
   split_type: 'equal' | 'percentage' | 'shares' | 'exact';
+  category_id: string | null;
   created_by_user_id: string;
   created_at: string;
   updated_at: string;
@@ -238,6 +242,7 @@ export type TemplateParticipant = {
 export type TemplateCreateInput = {
   name: string;
   split_type: SplitTemplate['split_type'];
+  category_id?: string | null;
   created_by_user_id: string;
   participants: Array<{
     user_id?: string | null;

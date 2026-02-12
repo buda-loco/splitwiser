@@ -26,11 +26,12 @@ import type { Profile } from '@/lib/db/types';
  * }
  * ```
  */
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -109,8 +110,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   };
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const updatedProfile = await getCurrentUserProfile();
+      setProfile(updatedProfile);
+    } catch (err) {
+      console.error('Failed to refresh profile:', err);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

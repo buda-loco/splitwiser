@@ -5,6 +5,7 @@ import { SwipeNavigation } from "@/components/SwipeNavigation";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { RateLimitToastContainer } from "@/components/RateLimitToast";
 import { ScheduledDeletionBanner } from "@/components/ScheduledDeletionBanner";
+import { PolicyAcceptanceCheck } from "@/components/PolicyAcceptanceCheck";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -37,6 +38,9 @@ export default function RootLayout({
         <AuthProvider>
           {/* Scheduled deletion warning banner */}
           <ScheduledDeletionBanner />
+
+          {/* Policy acceptance check for existing users */}
+          <PolicyAcceptanceCheck />
 
           {/* Content area with bottom padding for fixed nav */}
           <SwipeNavigation>

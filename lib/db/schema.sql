@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS profiles (
   display_name TEXT NOT NULL,
   avatar_url TEXT,
   currency_preference TEXT NOT NULL DEFAULT 'USD',
+  privacy_policy_accepted_at TIMESTAMPTZ,
+  terms_accepted_at TIMESTAMPTZ,
+  policy_version TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -57,7 +57,7 @@ export function ProfileForm({ profile, onSuccess }: ProfileFormProps) {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
+        error.issues.forEach((err) => {
           const path = err.path.join('.');
           newErrors[path] = err.message;
         });

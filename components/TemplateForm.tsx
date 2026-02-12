@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ParticipantPicker } from './ParticipantPicker';
+import { CategoryPicker } from './CategoryPicker';
 import { SplitEqual } from './SplitEqual';
 import { SplitByPercentage } from './SplitByPercentage';
 import { SplitByShares } from './SplitByShares';
 import type { ExpenseSplit } from '@/lib/db/types';
 import type { ParticipantWithDetails } from '@/hooks/useParticipants';
+import { CategoryType } from '@/lib/types/category';
 
 type SplitMethod = 'equal' | 'percentage' | 'shares' | 'exact';
 
@@ -17,6 +19,7 @@ type SplitMethod = 'equal' | 'percentage' | 'shares' | 'exact';
 export type TemplateFormData = {
   name: string;
   split_type: 'equal' | 'percentage' | 'shares' | 'exact';
+  category_id?: string | null;
   participants: ParticipantWithDetails[];
   splits: Array<{
     user_id?: string | null;
@@ -51,6 +54,7 @@ export function TemplateForm({
   // Form state - initialize from initialData if provided
   const [name, setName] = useState(initialData?.name || '');
   const [splitType, setSplitType] = useState<SplitMethod>(initialData?.split_type || 'equal');
+  const [categoryId, setCategoryId] = useState<string | null>(initialData?.category_id || null);
 
   // Participant and split state
   const [participants, setParticipants] = useState<ParticipantWithDetails[]>(initialData?.participants || []);
@@ -162,6 +166,7 @@ export function TemplateForm({
     onSubmit({
       name,
       split_type: splitType,
+      category_id: categoryId,
       participants,
       splits: formSplits
     });
@@ -216,6 +221,20 @@ export function TemplateForm({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Category (optional) */}
+          <div>
+            <label className="block text-sm font-medium text-ios-black dark:text-white mb-2">
+              Category (optional)
+            </label>
+            <p className="text-xs text-ios-gray dark:text-ios-gray3 mb-2">
+              Template will auto-suggest when creating expenses in this category
+            </p>
+            <CategoryPicker
+              selectedCategory={categoryId}
+              onSelect={(category) => setCategoryId(category)}
+            />
           </div>
 
           {/* Actions */}
