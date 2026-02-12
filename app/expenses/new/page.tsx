@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 import { addParticipantToExpense, createSplit, addTagToExpense, deleteExpense, saveParticipant } from '@/lib/db/stores';
+import { PageTransition } from '@/components/PageTransition';
 
 /**
  * New Expense Page
@@ -105,62 +106,63 @@ export default function NewExpensePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black pb-24">
-      {/* Header */}
-      <div className="pt-safe-top px-4 py-6 border-b border-ios-gray5 dark:border-gray-800">
-        <motion.h1
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-bold text-gray-900 dark:text-white"
-        >
-          New Expense
-        </motion.h1>
-      </div>
-
-      {/* Form */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="max-w-md mx-auto px-4 py-6"
-      >
-        <ExpenseForm
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-        />
-
-        {/* Error display */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
+    <PageTransition>
+      <div className="min-h-screen bg-white dark:bg-black pt-safe-top pb-safe">
+        <div className="max-w-md mx-auto px-4 py-6">
+          {/* Header */}
+          <motion.h1
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-ios-red rounded-xl"
+            className="text-3xl font-bold text-gray-900 dark:text-white mb-6"
           >
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-ios-red flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-ios-red mb-1">
-                  Failed to create expense
-                </h3>
-                <p className="text-sm text-red-700 dark:text-red-300">
-                  {error.message}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
+            New Expense
+          </motion.h1>
 
-        {/* Loading indicator (though optimistic = instant) */}
-        {isLoading && (
+          {/* Form */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-4 text-center text-sm text-ios-gray"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
           >
-            Saving expense...
+            <ExpenseForm
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+            />
+
+            {/* Error display */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-ios-red rounded-xl"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-ios-red flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-ios-red mb-1">
+                      Failed to create expense
+                    </h3>
+                    <p className="text-sm text-red-700 dark:text-red-300">
+                      {error.message}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Loading indicator (though optimistic = instant) */}
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-4 text-center text-sm text-ios-gray"
+              >
+                Saving expense...
+              </motion.div>
+            )}
           </motion.div>
-        )}
-      </motion.div>
-    </div>
+        </div>
+      </div>
+    </PageTransition>
   );
 }
