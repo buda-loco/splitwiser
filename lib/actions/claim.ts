@@ -85,6 +85,10 @@ export async function claimParticipantAccount(
         display_name: participant.name,
         avatar_url: null,
         currency_preference: 'USD',
+        deletion_scheduled_at: null,
+        privacy_policy_accepted_at: null,
+        terms_accepted_at: null,
+        policy_version: null,
       });
     } catch (profileError) {
       console.error('Failed to create/update profile after claiming:', profileError);
