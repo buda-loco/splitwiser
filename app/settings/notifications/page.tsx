@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import NotificationPreferences from '@/components/NotificationPreferences';
-import SwipeNavigation from '@/components/SwipeNavigation';
+import { SwipeNavigation } from '@/components/SwipeNavigation';
 import { PageTransition } from '@/components/PageTransition';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
